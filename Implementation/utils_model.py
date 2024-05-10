@@ -114,7 +114,8 @@ def ComputeFunctional(parameters, sigma = 0, gamma = 0.5, epsilon = 0.1, alpha =
     J=(1-y[-1]**2)*math.e**(-T/gamma)-epsilon*integral
     return -J
 
-def ComputeVel(parameters, vel, T, sigma = 0, gamma = 0.5, epsilon = 0.1, alpha = 0.5, timestep=1/500):
+def ComputeVel(parameters, vel = 0.1, T = 1.3, sigma = 0, gamma = 0.5, epsilon = 0.1, alpha = 0.5, timestep=1/500):
+    
     gamma, epsilon, alpha = parameters
     parameters2 = ( 3.7, -0.15679707,  0.97252444,  0.54660283, -6.75775885, -0.06253371)
     x, y, v, w, ux, uy, T2= numericalSimulation(x_0 = (0,0,0,0),  p_T = 1.0, 
@@ -146,7 +147,12 @@ def plot_trajectory(x, y, showing = True, via = True, plot_title = 'Mean Traject
         
 def generate_trajectory(params = ( 3.7, -0.15679707,  0.97252444,  0.54660283, -6.75775885, -0.06253371), 
                         sigma = 0, gamma = 0.5, epsilon = 0.1, alpha = 0.5, timestep=1/500, 
-                        plotting = True): 
+                        plotting = True):
+    '''
+        Function that computes and plots the trajectory for the initial given parameters 
+        (control function and lagrange multipliers) found by optimizing the functional in 
+        terms of the parameters. For fixed values of sigma, gamma, epsilon and alpha.
+    ''' 
     initial_cond = scipy.optimize.minimize(ComputeFunctional, params, args=(), method=None)
     parameters = initial_cond.x
     x, y, v, w, ux, uy, T= numericalSimulation(x_0 = (0,0,0,0),  p_T = 1.0, 
@@ -170,3 +176,25 @@ def plot_simulation(x,y, dfx, dfy):
     plt.ylabel('Y')
     plt.legend()
     plt.show()
+    
+def generate_trajectory_vel(params = (.5, .5, .5), 
+                            parameters = ( 3.7, -0.15679707,  0.97252444,  0.54660283, -6.75775885, -0.06253371),
+                            sigma = 0, timestep=1/500, 
+                            plotting = True, T = 1.3, vel = 0.1):
+    '''
+        Function that computes and plots the trajectory for the initial given parameters 
+        (sigma, gamma, epsilon and alpha) found by optimizing the velocity in 
+        terms of the parameters. 
+    ''' 
+    new_params = scipy.optimize.minimize(ComputeVel(T = T, vel = vel), params, args=(), method=None)
+    gamma, epsilon, alpha  = new_params.x
+    x, y, v, w, ux, uy, T= numericalSimulation(x_0 = (0,0,0,0),  p_T = 1.0, 
+                        sigma = sigma, gamma = gamma, epsilon = epsilon, alpha = alpha,
+                        u_0 = parameters[:2], l_0 = parameters[2:], 
+                        i_max = 1000, dt = timestep,
+                        Autoregr = True, 
+                        Arc = True, angle=math.pi*7/24, angle0=0, p=(.2,0), r=.1
+                        )
+    if plotting: 
+        plot_trajectory(x,y, showing = True)
+    return x, y
