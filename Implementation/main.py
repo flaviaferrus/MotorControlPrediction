@@ -1,5 +1,5 @@
-from utils import load_data, data_clustering, plot_data, cleaning_data, linear_transf
-from utils import experimental_velocity, plot_velocity, saving_processed_data, load_processed_data
+from utils_data import load_data, data_clustering, plot_data, cleaning_data, linear_transf
+from utils_data import experimental_velocity, plot_velocity, saving_processed_data, load_processed_data
 import random
 import pandas as pd
 from typing import Tuple
@@ -78,6 +78,7 @@ def processing_data() -> Tuple[pd.DataFrame, list, list]:
         
 def main(loading = True, n_clusters = 4) -> None: 
     if loading: 
+        print('Loading processed data...')
         dfx = [[] for _ in range(n_clusters)]
         dfy = [[] for _ in range(n_clusters)]
         for cluster in range(n_clusters): 
@@ -85,9 +86,12 @@ def main(loading = True, n_clusters = 4) -> None:
             dfy[cluster] = load_processed_data(folder_path='processed_data', file_name='cluster{}_dfy.csv'.format(cluster))
         results = load_processed_data(folder_path='processed_data', file_name='results.csv')
     else: 
+        print('Loading and processing data...')
         results, rotated_dfx, rotated_dfy = processing_data() 
         
     print('Data loaded and processed :)')
+    
+    
           
 if __name__ == '__main__':
     main()

@@ -22,7 +22,21 @@ import warnings
 #########################################
 
 def load_data(path = 'dataTrajectories-25.mat') -> Tuple[pd.DataFrame, pd.DataFrame]:
-    mat = scipy.io.loadmat('dataTrajectories-25.mat')
+    
+    # Get the current directory
+    current_dir = os.getcwd()
+    
+    # Navigate one step up (to the parent directory)
+    parent_dir = os.path.dirname(current_dir)
+    
+    # Enter the 'data' folder
+    data_folder = os.path.join(parent_dir, 'data')
+    
+    # Construct the full file path
+    full_path = os.path.join(data_folder, path)
+    
+    # Load the data from the file
+    mat = scipy.io.loadmat(full_path)
     dfx = pd.DataFrame(mat["X"].T)
     dfy = pd.DataFrame(mat["Y"].T)
     dfx = dfx.reset_index().drop(columns="index")
@@ -286,18 +300,35 @@ def plot_velocity(dfv : pd.DataFrame, saving_plot = False, pic_name = 'Velocity'
 
 
 def saving_processed_data(df : pd.DataFrame, folder_name = 'processed_data', file_name = 'processed_dfx'): 
+    # Get the current directory
+    current_dir = os.getcwd()
+    
+    # Navigate one step up (to the parent directory)
+    parent_dir = os.path.dirname(current_dir)
+    
+    # Enter the 'data' folder
+    data_folder = os.path.join(parent_dir, folder_name)
     
     # Check if the folder exists, if not, create it
-    if not os.path.exists(folder_name):
-        os.makedirs(folder_name)
+    if not os.path.exists(data_folder):
+        os.makedirs(data_folder)
     # Save the DataFrame to a file
     filename = f'{file_name}.csv'
-    file_path = os.path.join(folder_name, filename)   
+    file_path = os.path.join(data_folder, filename)   
     df.to_csv(file_path, index=False) 
     
 def load_processed_data(folder_path: str, file_name: str) -> pd.DataFrame:
+    # Get the current directory
+    current_dir = os.getcwd()
+    
+    # Navigate one step up (to the parent directory)
+    parent_dir = os.path.dirname(current_dir)
+    
+    # Enter the 'data' folder
+    data_folder = os.path.join(parent_dir, folder_path)
+    
     # Load the DataFrame from the file
-    file_path = os.path.join(folder_path, file_name)
+    file_path = os.path.join(data_folder, file_name)
     df = pd.read_csv(file_path)  # Change the format as per your requirement
     return df
 
