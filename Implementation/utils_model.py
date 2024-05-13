@@ -55,7 +55,12 @@ def numericalSimulation(x_0 = (0,0,0,0),  p_T = 1.0,
             W_increment=np.random.normal(0.,np.sqrt(dt),1)[0]
             Wt = Wt + W_increment
         else: 
-            Wt = np.random.normal(0.,np.sqrt(dt),1)[0] 
+            if np.linalg.norm(sigma) > 0:
+                Wt = np.random.normal(0.,np.sqrt(np.abs(sigma)),1)[0] 
+                #Wt = np.random.normal(0.,np.sqrt(dt*sigma),1)[0] 
+            else: 
+                Wt = np.random.normal(0.,np.sqrt(dt),1)[0] 
+            #Wt = np.random.normal(0.,np.sqrt(dt),1)[0] 
            
         ## System's dynamics:
         
@@ -154,7 +159,7 @@ def computeSamples(parameters, new_params : np.ndarray = (0,0,0),
                             sigma = sigma, gamma = gamma, epsilon = epsilon, alpha = alpha,
                             u_0 = parameters2[:2], l_0 = parameters2[2:], 
                             i_max = 1000, dt = timestep,
-                            Autoregr = True, 
+                            Autoregr = False, 
                             Arc = True, angle=math.pi*7/24, angle0=0, p=(.2,0), r=.1)
         xT2_samples.append(x.flatten()[-1])
             
@@ -166,7 +171,7 @@ def computeSamples(parameters, new_params : np.ndarray = (0,0,0),
 #########################################
 
 
-def plot_trajectory(x, y, showing = True, via = True, plot_title = 'Mean Trajectory'): 
+def plot_trajectory(x, y, showing = True, via = True, plot_title = 'Simulated Trajectory'): 
     plt.plot(x,y,color='blue', label=plot_title, alpha = 1)
     if via:
         angle=math.pi*7/24
@@ -181,7 +186,7 @@ def plot_simulation(x : np.ndarray , y : np.ndarray,
     for i in range(len(dfx)):
         plt.plot(dfx.iloc[i], dfy.iloc[i], color='gray', alpha=0.5)
     plot_trajectory(x,y, showing = False)
-    plt.title('Trajectories in Cluster 2')
+    plt.title('Trajectories in Cluster {}'.format(cluster))
     plt.grid(True)
     plt.xlabel('X')
     plt.ylabel('Y')
@@ -281,7 +286,7 @@ def optimize_Sigma(dfx : pd.DataFrame, dfy : pd.DataFrame, idxrule : np.ndarray,
                         sigma = sigma, gamma = gamma, epsilon = epsilon, alpha = alpha,
                         u_0 = parameters[:2], l_0 = parameters[2:], 
                         i_max = 1000, dt = timestep,
-                        Autoregr = True, 
+                        Autoregr = False, 
                         Arc = True, angle=math.pi*7/24, angle0=0, p=(.2,0), r=.1
                         )
     # Plot trajectory if required
