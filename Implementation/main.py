@@ -93,14 +93,14 @@ def processing_data(n_clusters = 4) -> Tuple[pd.DataFrame, list, list]:
 def fitParamaters(results : pd.DataFrame, 
                   dfx : list, dfy : list, 
                   n_clusters = 4) -> None:
-    
+    new_params = [[] for _ in range(n_clusters)]
     for cluster in range(n_clusters): 
         print('Computing trajectory with optimized velocity for cluser: ', cluster)
         x, y, T = generate_trajectory(plotting = False)
         plot_simulation(x, y, dfx[cluster], dfy[cluster], 
                     cluster = cluster, pic_name = 'Trajectories_optFunctional', 
                     saving_plot = True)
-        x_, y_ = generate_trajectory_vel(plotting = False, 
+        x_, y_, new_params[cluster] = generate_trajectory_vel(plotting = False, 
                                  T = T,
                                  vel = results[results['cluster'] == cluster].max_vel.values[0])
         plot_simulation(x_, y_, dfx[cluster], dfy[cluster], 

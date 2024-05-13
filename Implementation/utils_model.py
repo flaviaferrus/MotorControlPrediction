@@ -7,6 +7,7 @@ import math
 import matplotlib.pyplot as plt
 import pandas as pd
 import scipy
+from scipy.stats import ks_2samp 
 import os
 from typing import Tuple
 import warnings
@@ -99,6 +100,11 @@ def arc_length(x, y):
 
     return arc
 
+
+#########################################
+##        FUNCTIONS TO OPTIMIZE        ##
+#########################################
+
 def ComputeFunctional(parameters, sigma = 0, gamma = 0.5, epsilon = 0.1, alpha = 0.5, timestep=1/500):
     
     x, y, v, w, ux, uy, T= numericalSimulation(x_0 = (0,0,0,0),  p_T = 1.0, 
@@ -130,6 +136,29 @@ def ComputeVel(parameters, vel = 0.1, T = 1.3, sigma = 0, gamma = 0.5, epsilon =
     
     return (T2 - T)**2 + (vel_max - vel)**2
 
+def computeSamples(parameters, new_params : np.ndarray = (0,0,0),
+                   xT_samples : list = [], n = 50, timestep = 1/500, 
+                   parameters2 = (3.7, -0.15679707,  0.97252444,  0.54660283, -6.75775885, -0.06253371)
+                   ) -> np.float64:
+    '''
+        Kolmogorov Smirnov Test
+    '''
+    
+    sigma = parameters
+    gamma, epsilon, alpha = new_params.x
+     
+    xT2_samples=[]
+
+    for i in range(n):
+        x, y, v, w, ux, uy, T2= numericalSimulation(x_0 = (0,0,0,0),  p_T = 1.0, 
+                            sigma = sigma, gamma = gamma, epsilon = epsilon, alpha = alpha,
+                            u_0 = parameters2[:2], l_0 = parameters2[2:], 
+                            i_max = 1000, dt = timestep,
+                            Autoregr = True, 
+                            Arc = True, angle=math.pi*7/24, angle0=0, p=(.2,0), r=.1)
+        xT2_samples.append(x.flatten()[-1])
+            
+    return ks_2samp(xT_samples, xT2_samples)[0]
 
 
 #########################################
@@ -145,27 +174,6 @@ def plot_trajectory(x, y, showing = True, via = True, plot_title = 'Mean Traject
         plt.plot(np.cos(angle*(T_1-1)),np.sin(angle*(T_1-1)),marker='o',markersize=35)
     if showing: 
         plt.show()
-        
-def generate_trajectory(params = ( 3.7, -0.15679707,  0.97252444,  0.54660283, -6.75775885, -0.06253371), 
-                        sigma = 0, gamma = 0.5, epsilon = 0.1, alpha = 0.5, timestep=1/500, 
-                        plotting = True):
-    '''
-        Function that computes and plots the trajectory for the initial given parameters 
-        (control function and lagrange multipliers) found by optimizing the functional in 
-        terms of the parameters. For fixed values of sigma, gamma, epsilon and alpha.
-    ''' 
-    initial_cond = scipy.optimize.minimize(ComputeFunctional, params, args=(), method=None)
-    parameters = initial_cond.x
-    x, y, v, w, ux, uy, T= numericalSimulation(x_0 = (0,0,0,0),  p_T = 1.0, 
-                        sigma = sigma, gamma = gamma, epsilon = epsilon, alpha = alpha,
-                        u_0 = parameters[:2], l_0 = parameters[2:], 
-                        i_max = 1000, dt = timestep,
-                        Autoregr = True, 
-                        Arc = True, angle=math.pi*7/24, angle0=0, p=(.2,0), r=.1
-                        )
-    if plotting: 
-        plot_trajectory(x,y, showing = True)
-    return x, y, T
 
 def plot_simulation(x : np.ndarray , y : np.ndarray,
                     dfx : pd.DataFrame, dfy : pd.DataFrame,
@@ -189,6 +197,32 @@ def plot_simulation(x : np.ndarray , y : np.ndarray,
     
     plt.show()
     
+    
+#########################################
+##        PARAMATER ESTIMATION         ##
+#########################################
+
+def generate_trajectory(params = ( 3.7, -0.15679707,  0.97252444,  0.54660283, -6.75775885, -0.06253371), 
+                        sigma = 0, gamma = 0.5, epsilon = 0.1, alpha = 0.5, timestep=1/500, 
+                        plotting = True):
+    '''
+        Function that computes and plots the trajectory for the initial given parameters 
+        (control function and lagrange multipliers) found by optimizing the functional in 
+        terms of the parameters. For fixed values of sigma, gamma, epsilon and alpha.
+    ''' 
+    initial_cond = scipy.optimize.minimize(ComputeFunctional, params, args=(), method=None)
+    parameters = initial_cond.x
+    x, y, v, w, ux, uy, T= numericalSimulation(x_0 = (0,0,0,0),  p_T = 1.0, 
+                        sigma = sigma, gamma = gamma, epsilon = epsilon, alpha = alpha,
+                        u_0 = parameters[:2], l_0 = parameters[2:], 
+                        i_max = 1000, dt = timestep,
+                        Autoregr = True, 
+                        Arc = True, angle=math.pi*7/24, angle0=0, p=(.2,0), r=.1
+                        )
+    if plotting: 
+        plot_trajectory(x,y, showing = True)
+    return x, y, T
+
 def generate_trajectory_vel(params = (.5, .5, .5), 
                             parameters = ( 3.7, -0.15679707,  0.97252444,  0.54660283, -6.75775885, -0.06253371),
                             sigma = 0, timestep=1/500, 
@@ -215,4 +249,43 @@ def generate_trajectory_vel(params = (.5, .5, .5),
     if plotting: 
         plot_trajectory(x, y, showing=True)
         
-    return x, y
+    return x, y, new_params
+
+def optimize_Sigma(dfx : pd.DataFrame, dfy : pd.DataFrame, idxrule : str, 
+                 new_params : np.ndarray,
+                 parameters = ( 3.7, -0.15679707,  0.97252444,  0.54660283, -6.75775885, -0.06253371),
+                 timestep=1/500, plotting = False):
+    '''
+        Function that computes and plots the trajectory for the initial given parameters 
+        (optimal gamma, epsilon and alpha, and optimized velocity) 
+        found by optimizing the Kolmogorov Smirnov estimate in 
+        terms of the sigma. 
+    ''' 
+    
+    xT_samples=[]
+    dfx.reset_index(drop=True, inplace=True)
+    
+    for i, row in dfx.iterrows():
+        if (idxrule[i]>0):
+            xT_samples.append(dfx.loc[i][idxrule[i]-1])
+            
+    # Define a partial function to pass additional arguments to ComputeVel
+    partial_computeSamples = lambda params: computeSamples(params, new_params = new_params,
+                                                        xT_samples = xT_samples) 
+    opt_Sigma=scipy.optimize.minimize_scalar(partial_computeSamples, bracket=None, bounds=None, args=(), method='golden', tol=None, options=None)
+    gamma, epsilon, alpha = new_params.x
+    sigma = opt_Sigma.x
+    
+    # Call numericalSimulation with the optimized parameters
+    x, y, v, w, ux, uy, T= numericalSimulation(x_0 = (0,0,0,0),  p_T = 1.0, 
+                        sigma = sigma, gamma = gamma, epsilon = epsilon, alpha = alpha,
+                        u_0 = parameters[:2], l_0 = parameters[2:], 
+                        i_max = 1000, dt = timestep,
+                        Autoregr = True, 
+                        Arc = True, angle=math.pi*7/24, angle0=0, p=(.2,0), r=.1
+                        )
+    # Plot trajectory if required
+    if plotting: 
+        plot_trajectory(x, y, showing=True) 
+        
+    return x, y, opt_Sigma
