@@ -164,7 +164,7 @@ def generate_trajectory(params = ( 3.7, -0.15679707,  0.97252444,  0.54660283, -
                         )
     if plotting: 
         plot_trajectory(x,y, showing = True)
-    return x, y
+    return x, y, T
 
 def plot_simulation(x,y, dfx, dfy): 
     for i in range(len(dfx)):
@@ -186,8 +186,12 @@ def generate_trajectory_vel(params = (.5, .5, .5),
         (sigma, gamma, epsilon and alpha) found by optimizing the velocity in 
         terms of the parameters. 
     ''' 
-    new_params = scipy.optimize.minimize(ComputeVel(T = T, vel = vel), params, args=(), method=None)
-    gamma, epsilon, alpha  = new_params.x
+    # Define a partial function to pass additional arguments to ComputeVel
+    partial_compute_vel = lambda params: ComputeVel(params, vel=vel, T=T, sigma=sigma)   
+    # Use scipy.optimize.minimize with the partial function
+    new_params = scipy.optimize.minimize(partial_compute_vel, params, args=(), method=None)
+    gamma, epsilon, alpha = new_params.x
+    # Call numericalSimulation with the optimized parameters
     x, y, v, w, ux, uy, T= numericalSimulation(x_0 = (0,0,0,0),  p_T = 1.0, 
                         sigma = sigma, gamma = gamma, epsilon = epsilon, alpha = alpha,
                         u_0 = parameters[:2], l_0 = parameters[2:], 
@@ -195,6 +199,8 @@ def generate_trajectory_vel(params = (.5, .5, .5),
                         Autoregr = True, 
                         Arc = True, angle=math.pi*7/24, angle0=0, p=(.2,0), r=.1
                         )
+    # Plot trajectory if required
     if plotting: 
-        plot_trajectory(x,y, showing = True)
+        plot_trajectory(x, y, showing=True)
+        
     return x, y
