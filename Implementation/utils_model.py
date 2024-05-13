@@ -171,7 +171,10 @@ def computeSamples(parameters, new_params : np.ndarray = (0,0,0),
 #########################################
 
 
-def plot_trajectory(x, y, showing = True, via = True, plot_title = 'Simulated Trajectory'): 
+def plot_trajectory(x, y, showing = True, via = True, plot_title = 'Simulated Trajectory'):
+    '''
+        Function that plots the given trajectory (x(t), y(t)). 
+    ''' 
     plt.plot(x,y,color='blue', label=plot_title, alpha = 1)
     if via:
         angle=math.pi*7/24
@@ -182,9 +185,15 @@ def plot_trajectory(x, y, showing = True, via = True, plot_title = 'Simulated Tr
 
 def plot_simulation(x : np.ndarray , y : np.ndarray,
                     dfx : pd.DataFrame, dfy : pd.DataFrame,
-                    cluster : int, pic_name = 'Trajectories', saving_plot = False): 
+                    cluster : int, pic_name = 'Trajectories', 
+                    saving_plot = False): 
+    '''
+        Function that plots the given trajectory (x(t), y(t)) and 
+        the experimental data (dfx, dfy) for the given cluster. 
+    '''
     for i in range(len(dfx)):
         plt.plot(dfx.iloc[i], dfy.iloc[i], color='gray', alpha=0.5)
+    
     plot_trajectory(x,y, showing = False)
     plt.title('Trajectories in Cluster {}'.format(cluster))
     plt.grid(True)
@@ -201,6 +210,56 @@ def plot_simulation(x : np.ndarray , y : np.ndarray,
         plt.savefig(filepath)
     
     plt.show()
+    
+def plot_multiple_trajectories(dfx : pd.DataFrame, dfy : pd.DataFrame,
+                               cluster : int, new_params : np.ndarray, opt_Sigma : np.float64,  
+                               parameters2 = ( 3.7, -0.15679707,  0.97252444,  0.54660283, -6.75775885, -0.06253371),
+                               n = 50, timestep = 1/500, 
+                               pic_name = 'Trajectories', 
+                               saving_plot = False): 
+    
+    
+    fig, ax = plt.subplots( nrows=1, ncols=1 )  # create figure & 1 axis
+    ## Plotting experimental data
+    for i in range(len(dfx)):
+        plt.plot(dfx.iloc[i], dfy.iloc[i], color='gray', alpha=0.5)
+        
+    ## Plotting numerical simulation
+    gamma, epsilon, alpha = new_params.x
+    sigma = opt_Sigma.x
+    
+    for i in range(n):
+        x, y, v, w, ux, uy, T= numericalSimulation(x_0 = (0,0,0,0),  p_T = 1.0, 
+                        sigma = sigma, gamma = gamma, epsilon = epsilon, alpha = alpha,
+                        u_0 = parameters2[:2], l_0 = parameters2[2:], 
+                        i_max = 1000, dt = timestep,
+                        Autoregr = False, 
+                        Arc = True, angle=math.pi*7/24, angle0=0, p=(.2,0), r=.1)
+        plt.plot(x, y) 
+    
+    x_, y_, v_, w_, ux_, uy_, T_= numericalSimulation(x_0 = (0,0,0,0),  p_T = 1.0, 
+                        sigma = sigma, gamma = gamma, epsilon = epsilon, alpha = alpha,
+                        u_0 = parameters2[:2], l_0 = parameters2[2:], 
+                        i_max = 1000, dt = timestep,
+                        Autoregr = False, 
+                        Arc = True, angle=math.pi*7/24, angle0=0, p=(.2,0), r=.1)
+    plot_trajectory(x_,y_, showing = False, plot_title= 'Trajectory with no noise')
+    
+    plt.title('Trajectories in Cluster {}'.format(cluster))
+    plt.grid(True)
+    plt.xlabel('X')
+    plt.ylabel('Y')
+    plt.legend()
+    if saving_plot:
+        # Check if the 'pics' folder exists, if not, create it
+        if not os.path.exists('pics'):
+            os.makedirs('pics')
+        # Save the figure with a specific name based on the cluster
+        filename = f'{pic_name}{cluster}.png'
+        filepath = os.path.join('pics', filename)
+        plt.savefig(filepath)
+    
+    plt.show() 
     
     
 #########################################
@@ -259,7 +318,7 @@ def generate_trajectory_vel(params = (.5, .5, .5),
 def optimize_Sigma(dfx : pd.DataFrame, dfy : pd.DataFrame, idxrule : np.ndarray, 
                  new_params : np.ndarray,
                  parameters = ( 3.7, -0.15679707,  0.97252444,  0.54660283, -6.75775885, -0.06253371),
-                 timestep=1/500, plotting = False):
+                 timestep=1/500, plotting = False) -> Tuple[np.ndarray, np.ndarray, np.float64]:
     '''
         Function that computes and plots the trajectory for the initial given parameters 
         (optimal gamma, epsilon and alpha, and optimized velocity) 

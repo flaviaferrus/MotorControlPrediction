@@ -10,7 +10,7 @@ from typing import Tuple
 # Load the custom functions from .py file  
 from utils_data import load_data, data_clustering, plot_data, cleaning_data, linear_transf
 from utils_data import experimental_velocity, plot_velocity, saving_processed_data, load_processed_data
-from utils_model import generate_trajectory, plot_simulation, generate_trajectory_vel, optimize_Sigma
+from utils_model import generate_trajectory, plot_simulation, generate_trajectory_vel, optimize_Sigma, plot_multiple_trajectories
 
 
 
@@ -93,7 +93,7 @@ def processing_data(n_clusters = 4) -> Tuple[pd.DataFrame, list, list]:
 
 def fitParamaters(results : pd.DataFrame, 
                   dfx : list, dfy : list, 
-                  n_clusters = 4) -> None:
+                  n_clusters = 4) -> Tuple[list, list]:
     
     new_params = [[] for _ in range(n_clusters)]
     opt_sigma = [[] for _ in range(n_clusters)]
@@ -132,7 +132,20 @@ def fitParamaters(results : pd.DataFrame,
         
         print('Parameters estimated:')
         print(new_params[cluster].x, opt_sigma[cluster].x)
+        
+    return new_params, opt_sigma
             
+def plot_simulated_trajectories(dfx : list, dfy : list, 
+                                new_params : list, opt_sigma : list, 
+                                n_clusters = 4) -> None:
+    
+    for cluster in range(n_clusters):
+        plot_multiple_trajectories(dfx[cluster], dfy[cluster], cluster = cluster, 
+                               new_params = new_params[cluster], opt_Sigma = opt_sigma[cluster], 
+                               pic_name = 'Simulated and experimental data', saving_plot = True)
+        
+        
+        
         
 def main(loading = True, n_clusters = 4) -> None: 
     if loading: 
@@ -149,9 +162,19 @@ def main(loading = True, n_clusters = 4) -> None:
         
     print('Data loaded and processed :)')
     
-    print('Fitting paramaters for the optimized trajectory...')
+    print('Fitting paramaters for the optimized trajectory...')   
+    new_params, opt_sigma = fitParamaters(results, dfx, dfy)   
+    print('Parameters fitted:')
+    print('gamma, epsilon, alpha, sigma= ')
+    for cluster in range(n_clusters):
+        print(new_params[cluster].x, opt_sigma[cluster].x)
+        
+    print('Plotting simulated trajectories along with experimental data...')
+    for cluster in range(n_clusters):
+        plot_multiple_trajectories(dfx[cluster], dfy[cluster], cluster = cluster, 
+                               new_params = new_params[cluster], opt_Sigma = opt_sigma[cluster], 
+                               pic_name = 'Simulated and experimental data', saving_plot = True)
     
-    fitParamaters(results, dfx, dfy)
     
           
 if __name__ == '__main__':
