@@ -251,7 +251,7 @@ def generate_trajectory_vel(params = (.5, .5, .5),
         
     return x, y, new_params
 
-def optimize_Sigma(dfx : pd.DataFrame, dfy : pd.DataFrame, idxrule : str, 
+def optimize_Sigma(dfx : pd.DataFrame, dfy : pd.DataFrame, idxrule : np.ndarray, 
                  new_params : np.ndarray,
                  parameters = ( 3.7, -0.15679707,  0.97252444,  0.54660283, -6.75775885, -0.06253371),
                  timestep=1/500, plotting = False):
