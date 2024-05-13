@@ -1,15 +1,29 @@
-from utils_data import load_data, data_clustering, plot_data, cleaning_data, linear_transf
-from utils_data import experimental_velocity, plot_velocity, saving_processed_data, load_processed_data
+#########################################
+##          GENERAL IMPORTS            ##
+#########################################
+
 import random
 import pandas as pd
 from typing import Tuple
 
-def processing_data() -> Tuple[pd.DataFrame, list, list]:
+# Load the custom functions from .py file  
+from utils_data import load_data, data_clustering, plot_data, cleaning_data, linear_transf
+from utils_data import experimental_velocity, plot_velocity, saving_processed_data, load_processed_data
+from utils_model import generate_trajectory, plot_simulation, generate_trajectory_vel
+
+
+
+##############################################
+## GENERAL PROCESSING AND FITTING FUNCTIONS ##
+##############################################
+
+
+def processing_data(n_clusters = 4) -> Tuple[pd.DataFrame, list, list]:
     
     dfx, dfy = load_data()
     
     random.seed(10)
-    n_clusters = 4
+    # n_clusters = 4
     
     cluster_datasets, cluster_labels = data_clustering(dfx, dfy)
     
@@ -28,7 +42,7 @@ def processing_data() -> Tuple[pd.DataFrame, list, list]:
     dfv = [[] for _ in range(n_clusters)] 
    
     # Iterate over each cluster
-    for cluster in range(4):
+    for cluster in range(n_clusters):
         # Get the corresponding point for the current cluster
         pt = cluster_points[cluster]
         
@@ -74,7 +88,25 @@ def processing_data() -> Tuple[pd.DataFrame, list, list]:
     
     saving_processed_data(rect_df, folder_name = 'processed_data', file_name = 'results')
     
-    return rect_df, rotated_dfx, rotated_dfy    
+    return rect_df, rotated_dfx, rotated_dfy  
+
+def fitParamaters(results : pd.DataFrame, 
+                  dfx : list, dfy : list, 
+                  n_clusters = 4) -> None:
+    
+    for cluster in range(n_clusters): 
+        print('Computing trajectory with optimized velocity for cluser: ', cluster)
+        x, y, T = generate_trajectory(plotting = False)
+        plot_simulation(x, y, dfx[cluster], dfy[cluster], 
+                    cluster = cluster, pic_name = 'Trajectories_optFunctional', 
+                    saving_plot = True)
+        x_, y_ = generate_trajectory_vel(plotting = False, 
+                                 T = T,
+                                 vel = results[results['cluster'] == cluster].max_vel.values[0])
+        plot_simulation(x_, y_, dfx[cluster], dfy[cluster], 
+                    cluster = cluster, pic_name = 'Trajectories_optVel', 
+                    saving_plot = True)
+        
         
 def main(loading = True, n_clusters = 4) -> None: 
     if loading: 
@@ -87,10 +119,13 @@ def main(loading = True, n_clusters = 4) -> None:
         results = load_processed_data(folder_path='processed_data', file_name='results.csv')
     else: 
         print('Loading and processing data...')
-        results, rotated_dfx, rotated_dfy = processing_data() 
+        results, dfx, dfy = processing_data()
         
     print('Data loaded and processed :)')
     
+    print('Fitting paramaters for the optimized trajectory...')
+    
+    fitParamaters(results, dfx, dfy)
     
           
 if __name__ == '__main__':

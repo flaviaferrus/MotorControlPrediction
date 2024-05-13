@@ -7,6 +7,7 @@ import math
 import matplotlib.pyplot as plt
 import pandas as pd
 import scipy
+import os
 from typing import Tuple
 import warnings
 
@@ -166,7 +167,9 @@ def generate_trajectory(params = ( 3.7, -0.15679707,  0.97252444,  0.54660283, -
         plot_trajectory(x,y, showing = True)
     return x, y, T
 
-def plot_simulation(x,y, dfx, dfy): 
+def plot_simulation(x : np.ndarray , y : np.ndarray,
+                    dfx : pd.DataFrame, dfy : pd.DataFrame,
+                    cluster : int, pic_name = 'Trajectories', saving_plot = False): 
     for i in range(len(dfx)):
         plt.plot(dfx.iloc[i], dfy.iloc[i], color='gray', alpha=0.5)
     plot_trajectory(x,y, showing = False)
@@ -175,12 +178,21 @@ def plot_simulation(x,y, dfx, dfy):
     plt.xlabel('X')
     plt.ylabel('Y')
     plt.legend()
+    if saving_plot:
+        # Check if the 'pics' folder exists, if not, create it
+        if not os.path.exists('pics'):
+            os.makedirs('pics')
+        # Save the figure with a specific name based on the cluster
+        filename = f'{pic_name}{cluster}.png'
+        filepath = os.path.join('pics', filename)
+        plt.savefig(filepath)
+    
     plt.show()
     
 def generate_trajectory_vel(params = (.5, .5, .5), 
                             parameters = ( 3.7, -0.15679707,  0.97252444,  0.54660283, -6.75775885, -0.06253371),
                             sigma = 0, timestep=1/500, 
-                            plotting = True, T = 1.3, vel = 0.1):
+                            plotting = True, T = 1.3, vel = 0.1) -> Tuple[np.ndarray, np.ndarray]:
     '''
         Function that computes and plots the trajectory for the initial given parameters 
         (sigma, gamma, epsilon and alpha) found by optimizing the velocity in 
