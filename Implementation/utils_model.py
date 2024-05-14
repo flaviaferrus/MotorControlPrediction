@@ -52,7 +52,10 @@ def numericalSimulation(x_0 = (0,0,0,0),  p_T = 1.0,
         
         t = i * dt
         if ( Autoregr == True ):
-            W_increment=np.random.normal(0.,np.sqrt(dt),1)[0]
+            if np.linalg.norm(sigma) > 0:
+                W_increment=np.random.normal(0.,np.sqrt(np.abs(sigma)),1)[0]
+            else: 
+                W_increment=np.random.normal(0.,np.sqrt(dt),1)[0]
             Wt = Wt + W_increment
         else: 
             if np.linalg.norm(sigma) > 0:
@@ -261,6 +264,26 @@ def plot_multiple_trajectories(dfx : pd.DataFrame, dfy : pd.DataFrame,
     
     plt.show() 
     
+def plotting_params(parameters : np.ndarray,
+                    barWidth = 0.5):
+    # Choose the height of the blue bars
+    bars1 = parameters.mean(axis=0)
+ 
+    # Choose the height of the error bars (bars1)
+    yer1 = 2*parameters.std(axis=0)
+ 
+    # The x position of bars
+    r1 = np.arange(len(bars1))
+
+    fig, ax = plt.subplots( nrows=1, ncols=1 )  # create figure & 1 axis
+    
+    # Create blue bars
+    ax.bar(r1, bars1, width = barWidth, color = ['blue','red','green','orange'], edgecolor = 'black', yerr=yer1, capsize=7,)
+    
+    # general layout
+    plt.xticks(r1, ['gamma', 'epsilon', 'alpha', 'sigma'])
+    plt.ylabel('height')    
+
     
 #########################################
 ##        PARAMATER ESTIMATION         ##

@@ -10,7 +10,7 @@ from typing import Tuple
 # Load the custom functions from .py file  
 from utils_data import load_data, data_clustering, plot_data, cleaning_data, linear_transf
 from utils_data import experimental_velocity, plot_velocity, saving_processed_data, load_processed_data
-from utils_model import generate_trajectory, plot_simulation, generate_trajectory_vel, optimize_Sigma, plot_multiple_trajectories
+from utils_model import generate_trajectory, plot_simulation, generate_trajectory_vel, optimize_Sigma, plot_multiple_trajectories, plotting_params
 
 
 
