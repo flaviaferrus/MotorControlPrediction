@@ -19,9 +19,9 @@ from utils_model import generate_trajectory, plot_simulation, generate_trajector
 ##############################################
 
 
-def processing_data(n_clusters = 4) -> Tuple[pd.DataFrame, list, list]:
+def processing_data(n_clusters = 4, path = 'dataTrajectories-25.mat') -> Tuple[pd.DataFrame, list, list]:
     
-    dfx, dfy = load_data()
+    dfx, dfy = load_data( path = path )
     
     random.seed(10)
     # n_clusters = 4

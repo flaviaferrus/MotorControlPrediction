@@ -81,8 +81,6 @@ def data_clustering(dfx : pd.DataFrame, dfy : pd.DataFrame) -> Tuple[list, np.nd
         
     return cluster_datasets, cluster_labels
 
-from typing import Tuple
-
 def plot_data(dfx : pd.DataFrame, dfy : pd.DataFrame, 
               cluster_labels: list, 
               cluster = 2, 
