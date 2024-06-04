@@ -137,3 +137,74 @@ def cleaning_multiple_data(dfx : pd.DataFrame, dfy : pd.DataFrame,
     print(dfx.shape)
     
     return dfx, dfy, idxrule
+
+from typing import Tuple
+
+def plot_data(dfx : pd.DataFrame, dfy : pd.DataFrame, 
+              cluster_labels: list, 
+              cluster = 2, 
+              n_clusters = 4,
+              plotting_target = False, 
+              saving_plot = False,
+              pt = (0,0),
+              pic_name = 'cluster', 
+              ax = None
+              ) -> Tuple[np.ndarray, np.ndarray]: 
+    
+    if ax is None:
+        ax = plt.gca()
+       
+    if len(cluster_labels) == 0:
+        for i in range(len(dfx)):
+            ax.plot(dfx.iloc[i], dfy.iloc[i])
+    else: 
+        for i in range(len(dfx)):
+            if (cluster_labels[i] == cluster):
+                ax.plot(dfx.loc[i], dfy.loc[i], color=plt.cm.jet(cluster_labels[i] / n_clusters), alpha=0.5)
+    
+    if plotting_target:
+        if (pt[0] < 0 and pt[1] > 0): #cluster == 3: # Top left pt2
+            pt0 = (pt[0] + 1, pt[1] + 1.75)
+            pt1 = (pt[0] - 1, pt[1] - 1.75)
+            pt2 = (pt0[0] - 1.25, pt0[1] + 1)
+            pt3 = (pt1[0] - 1.25, pt1[1] + 1) 
+        elif (pt[0] < 0 and pt[1] < 0): #cluster == 2: # Bottom right 1
+            pt0 = (pt[0] - 1, pt[1] + 1.75)
+            pt1 = (pt[0] + 1, pt[1] - 1.75)
+            pt2 = (pt0[0] - 1.25, pt0[1] - 1 )
+            pt3 = (pt1[0] - 1.25, pt1[1] - 1)
+        elif (pt[0] > 0 and pt[1] > 0): #cluster == 0: # Top right 2, 0
+            pt0 = (pt[0] - 1, pt[1] + 1.75)
+            pt1 = (pt[0] + 1, pt[1] - 1.75)
+            pt2 = (pt0[0] + 1.25, pt0[1] + 1 )
+            pt3 = (pt1[0] + 1.25, pt1[1] + 1)
+        else: # bottom left 1 (notebook 3)
+            pt0 = (pt[0] + 1, pt[1] + 1.75)
+            pt1 = (pt[0] - 1, pt[1] - 1.75)
+            pt2 = (pt0[0] + 1.25, pt0[1] - 1 )
+            pt3 = (pt1[0] + 1.25, pt1[1] - 1)
+            
+                    
+        rectx,recty=np.array([pt0[0], pt2[0], pt1[0], pt3[0]]), np.array([pt0[1], pt2[1], pt1[1], pt3[1]])
+        ax.scatter(rectx,recty)
+        ax.plot([rectx[0], rectx[2]], [recty[0], recty[2]], color = 'red', alpha = 0.5)
+    else: 
+        rectx,recty=np.array([0,0,0,0]), np.array([0,0,0,0])
+     
+    ax.set_title('Trajectories in Cluster {}'.format(cluster))
+    ax.grid(True)
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    if saving_plot:
+        # Check if the 'pics' folder exists, if not, create it
+        if not os.path.exists('pics'):
+            os.makedirs('pics')
+        # Save the figure with a specific name based on the cluster
+        filename = f'{pic_name}{cluster}.png'
+        filepath = os.path.join('pics', filename)
+        plt.savefig(filepath)
+    
+    if ax is None:
+        plt.show()
+        
+    return rectx, recty
