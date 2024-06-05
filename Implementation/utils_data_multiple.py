@@ -138,7 +138,69 @@ def cleaning_multiple_data(dfx : pd.DataFrame, dfy : pd.DataFrame,
     
     return dfx, dfy, idxrule
 
-from typing import Tuple
+def saving_processed_mult_data(cleaned_data_dict : list, 
+                               folder_name = 'cleaned_multiple_data') -> None: 
+    
+    print('Saving the cleaned data...')
+    # Get the current directory
+    current_dir = os.getcwd()
+    
+    # Navigate one step up (to the parent directory)
+    parent_dir = os.path.dirname(current_dir)
+    
+    # Enter the 'data' folder
+    data_folder = os.path.join(parent_dir, folder_name)
+    
+    # Check if the folder exists, if not, create it
+    if not os.path.exists(data_folder):
+        os.makedirs(data_folder)
+        
+    for key, df in cleaned_data_dict.items():
+        # Define the file path
+        file_path = os.path.join(data_folder, f"{key}.csv")
+        
+        # Save the DataFrame to a CSV file
+        df.to_csv(file_path, index=False)
+        
+    print("CSV files have been saved successfully.")
+       
+       
+def load_processed_mult_data(folder_path: str) -> list: 
+    
+    print('Reading the cleaned files...')
+    
+    # Initialize an empty dictionary to store the DataFrames
+    loaded_data_dict = {}
+    
+    # Get the current directory
+    current_dir = os.getcwd()
+    # Navigate one step up (to the parent directory)
+    parent_dir = os.path.dirname(current_dir)
+    # Enter the 'data' folder
+    data_folder = os.path.join(parent_dir, folder_path)
+    
+    # Iterate over each file in the directory
+    for filename in os.listdir(file_path):
+        if filename.endswith('.csv'):
+            # Construct the full file path
+            file_path = os.path.join(data_folder, filename)
+            
+            # Read the CSV file into a DataFrame
+            df = pd.read_csv(file_path)
+            
+            # Remove the '.csv' extension from the filename to use as the dictionary key
+            key = filename[:-4]
+            
+            # Store the DataFrame in the dictionary
+            loaded_data_dict[key] = df
+
+    print("CSV files have been loaded successfully.")
+    
+    return loaded_data_dict
+
+#########################################
+##          PLOTTING DATA              ##
+#########################################
 
 def plot_data(dfx : pd.DataFrame, dfy : pd.DataFrame, 
               cluster_labels: list, 
