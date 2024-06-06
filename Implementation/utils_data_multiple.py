@@ -44,9 +44,36 @@ def load_data(path = 'dataTrajectories-25.mat') -> Tuple[pd.DataFrame, pd.DataFr
     
     return dfx1, dfy1
 
+def load_multiple_data(first_subj = 25, last_subj = 37, 
+                       file_names = 'dataTrajectories') -> list: 
+    # Initialize an empty dictionary to store the datasets
+    data_dict = {}
+
+    # Loop over subjects
+    for subject in range(first_subj, last_subj): 
+        # Loop over motivations
+        for motivation in range(1, 4):  # Motivation 1 to 3 inclusive
+            # Loop over playing modes
+            for mode in range(1, 3):  # Playing mode 1 to 2 inclusive
+                # Construct the file name
+                file_name = f'{file_names}-{subject}-M{motivation}-C{mode}.mat'
+                
+                # Load the data using the load_data function
+                dfx, dfy = load_data(path=file_name)
+                
+                # Construct a key for the dictionary
+                key_x = f'dfx_{subject}_{motivation}{mode}'
+                key_y = f'dfy_{subject}_{motivation}{mode}'
+                
+                # Store the datasets in the dictionary
+                data_dict[key_x] = dfx
+                data_dict[key_y] = dfy
+    return data_dict
+
 def point_to_segment(cluster_points : List, n_clusters = 4) -> List[Tuple[Tuple[float, float], Tuple[float, float]]]:
     
     segments = []
+    
     for cluster in range(n_clusters):
          # Get the corresponding point for the current cluster
         pt = cluster_points[cluster]
@@ -75,6 +102,16 @@ def point_to_segment(cluster_points : List, n_clusters = 4) -> List[Tuple[Tuple[
             s = (pt1[0], pt1[1])
             r = (pt0[0], pt0[1])
             
+        else: # bottom left 1 (notebook 3)
+            pt0 = (pt[0] + 1, pt[1] + 1.75)
+            pt1 = (pt[0] - 1, pt[1] - 1.75)
+            pt2 = (pt0[0] + 1.25, pt0[1] - 1 )
+            pt3 = (pt1[0] + 1.25, pt1[1] - 1)
+            s = (pt1[0], pt1[1])
+            r = (pt0[0], pt0[1])
+        
+        segments.append((r, s))  
+                
     return segments
 
 
@@ -90,36 +127,45 @@ def on_segment(p, r, s, tol = 1e-3) -> bool:
     return False
 
 
-def cleaning_multiple_data(dfx : pd.DataFrame, dfy : pd.DataFrame, 
-                  segments: List[Tuple[Tuple[float, float], Tuple[float, float]]]) -> Tuple[pd.DataFrame, pd.DataFrame, list]: 
+def cleaning_clustering_data(dfx : pd.DataFrame, dfy : pd.DataFrame, 
+                  segments: List[Tuple[Tuple[float, float], Tuple[float, float]]], 
+                  printing = False) -> Tuple[pd.DataFrame, pd.DataFrame, list]: 
     
     print('Dataset shape before cleaning:')
     print(dfx.shape)
-        
-    idxrule = []
+    
+    # Dictionary to hold dataframes for each segment
+    segment_data = {f'segment_{i}': (pd.DataFrame(columns=dfx.columns), pd.DataFrame(columns=dfy.columns)) for i in range(len(segments))}
+    idxrules = {f'segment_{i}': [] for i in range(len(segments))}
     
     for dx in dfx.index:
+        segment_index = None  # Initialize segment index
         t_intersect = None  # Initialize t_intersect
         for t in range(len(dfx.columns) - 1):
             p = (dfx.loc[dx, dfx.columns[t]], dfy.loc[dx, dfx.columns[t]])
-            for r, s in segments:
+            for i, (r, s) in enumerate(segments):
                 if on_segment(p, r, s):
                     # If intersects, keep trajectory up to the intersecting point
                     t_intersect = t + 1
-                    idxrule.append(t_intersect)
+                    segment_index = i
                     dfx.loc[dx, dfx.columns[t_intersect:]] = p[0]
-                    dfy.loc[dx, dfx.columns[t_intersect:]] = p[1]
+                    dfy.loc[dx, dfy.columns[t_intersect:]] = p[1]
                     # And we stop looking for the intersection
                     break
             if t_intersect is not None:
                 break
-
-        if t_intersect is None:
+        
+        if t_intersect is not None:
+            # Add the trajectory to the corresponding segment's dataframe
+            segment_data[f'segment_{segment_index}'][0].loc[dx] = dfx.loc[dx]
+            segment_data[f'segment_{segment_index}'][1].loc[dx] = dfy.loc[dx]
+            idxrules[f'segment_{segment_index}'].append(t_intersect)
+        else:
             # No intersection found, drop the row
-            #print('Dropping row: ', dx)
             dfx = dfx.drop(axis=0, index=dx)
             dfy = dfy.drop(axis=0, index=dx)
-
+    
+    # Drop trajectories that exceed the specified bounds
     index1 = dfy[(dfy < -10).any(axis=1)].index
     index2 = dfx[(dfx < -15).any(axis=1)].index
     index3 = dfx[(dfx > 15).any(axis=1)].index
@@ -128,15 +174,59 @@ def cleaning_multiple_data(dfx : pd.DataFrame, dfy : pd.DataFrame,
     index01 = index0.union(index3)
     index = index01.union(index4)
     
-    dfx = dfx.drop(axis=0, index=index)
-    dfy = dfy.drop(axis=0, index=index)
-    dfx.reset_index(drop=True, inplace=True)
-    dfy.reset_index(drop=True, inplace=True)
+    for key in segment_data.keys():
+        segment_dfx, segment_dfy = segment_data[key]
+        segment_dfx = segment_dfx.drop(axis=0, index=index, errors='ignore')
+        segment_dfy = segment_dfy.drop(axis=0, index=index, errors='ignore')
+        segment_dfx.reset_index(drop=True, inplace=True)
+        segment_dfy.reset_index(drop=True, inplace=True)
+        segment_data[key] = (segment_dfx, segment_dfy)
     
-    print('Dataset shape after cleaning:')
-    print(dfx.shape)
+    if printing:
+        print('Dataset shape after cleaning:')
+        for key in segment_data.keys():
+            print(f'{key} shape: {segment_data[key][0].shape}')
+        
+    return segment_data, idxrules
+
+
+def cleaning_clustering_multiple_data(data_dict: list, 
+                                      segments : List[Tuple[Tuple[float, float], Tuple[float, float]]], 
+                                      first_subj = 25, last_subj = 37,
+                                      save_dir = 'subject_plots'):
     
-    return dfx, dfy, idxrule
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
+    cleaned_data_dict = {}
+    idxrule_dict = {}
+
+    # Loop over subjects
+    for subject in range(first_subj, last_subj): 
+        fig, axes = plt.subplots(3, 2, figsize=(15, 10))  # 3 rows, 2 columns of subplots
+        fig.suptitle(f'Subject {subject} Trajectories', fontsize=16)
+        subplot_index = 0
+        for motivation in range(1, 4):
+            for mode in range(1, 3):     
+                
+                ax = axes[subplot_index // 2, subplot_index % 2]
+                key_x = f'dfx_{subject}_{motivation}{mode}'
+                key_y = f'dfy_{subject}_{motivation}{mode}'
+                pic_name = f'Cleaned Trajectories-{subject}-M{motivation}-C{mode}'
+                
+                print('Cleaning and clustering subjects data...', pic_name)
+                df, idxrule = cleaning_clustering_data(data_dict[key_x], 
+                                    data_dict[key_y], 
+                                    segments = segments)
+                # Store the datasets in the dictionary
+                cluster = 0
+                for cluster_key in df.keys(): 
+                    cleaned_data_dict[cluster][key_x] = df[cluster_key][0]
+                    cleaned_data_dict[cluster][key_y] = df[cluster_key][1]
+                    idxrule_dict[cluster][key_x] = idxrule
+                    cluster += 1
+                
+    return cleaned_data_dict, idxrule_dict
 
 def saving_processed_mult_data(cleaned_data_dict : list, 
                                folder_name = 'cleaned_multiple_data') -> None: 
@@ -197,6 +287,7 @@ def load_processed_mult_data(folder_path: str) -> list:
     print("CSV files have been loaded successfully.")
     
     return loaded_data_dict
+
 
 #########################################
 ##          PLOTTING DATA              ##
@@ -270,3 +361,45 @@ def plot_data(dfx : pd.DataFrame, dfy : pd.DataFrame,
         plt.show()
         
     return rectx, recty
+
+def plot_multiple_data(data_dict : list, 
+                       first_subj = 25, last_subj = 37, 
+                       save_dir = 'subject_plots', 
+                       saving = True):
+    
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
+    # Loop over subjects
+    for subject in range(first_subj, last_subj): 
+        fig, axes = plt.subplots(3, 2, figsize=(15, 10))  # 3 rows, 2 columns of subplots
+        fig.suptitle(f'Subject {subject} Trajectories', fontsize=16)
+        subplot_index = 0
+        for motivation in range(1, 4):
+            for mode in range(1, 3):
+                ax = axes[subplot_index // 2, subplot_index % 2]
+                key_x = f'dfx_{subject}_{motivation}{mode}'
+                key_y = f'dfy_{subject}_{motivation}{mode}'
+                pic_name = f'dataTrajectories-{subject}-M{motivation}-C{mode}'
+                
+                plot_data(
+                    data_dict[key_x], 
+                    data_dict[key_y], 
+                    cluster_labels=[],  
+                    cluster=None,     
+                    n_clusters=None,  
+                    plotting_target=False, 
+                    saving_plot=False, 
+                    pic_name=pic_name,
+                    ax=ax  # Pass the subplot axis to plot_data
+                )
+                ax.set_title(f'Motivation {motivation}, Mode {mode}')
+                subplot_index += 1
+        
+        plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+        # Save the figure
+        if saving: 
+            save_path = os.path.join(save_dir, f'Subject_{subject}_Trajectories.png')
+            plt.savefig(save_path)
+        
+        plt.show()
