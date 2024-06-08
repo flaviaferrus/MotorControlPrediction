@@ -240,7 +240,6 @@ def point_to_segment(cluster_points : List, n_clusters = 4) -> List[Tuple[Tuple[
                 
     return segments
 
-
 def on_segment(p, r, s, tol = 1e-3) -> bool:
     x_max = max(r[0], s[0])
     x_min = min(r[0], s[0])
@@ -313,7 +312,6 @@ def cleaning_clustering_data(dfx : pd.DataFrame, dfy : pd.DataFrame,
             print(f'{key} shape: {segment_data[key][0].shape}')
         
     return segment_data, idxrules
-
 
 def cleaning_clustering_multiple_data(data_dict: dict, 
                                       segments: List[Tuple[Tuple[float, float], Tuple[float, float]]], 
