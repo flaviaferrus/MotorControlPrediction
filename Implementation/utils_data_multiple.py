@@ -163,10 +163,6 @@ def load_processed_mult_data(folder_name: str = 'cleaned_multiple_data') -> Tupl
     print("CSV and idxrule JSON files have been loaded successfully.")
     return cleaned_data_dict, idxrule_dict
 
-# Example usage:
-# cleaned_data_dict, idxrule_dict = load_processed_mult_data(folder_name='clustered_multiple_data')
-
-
 def get_cluster_data(cleaned_data_dict, subject, motivation, mode, cluster):
     cluster_key_x = f'dfx_{subject}_{motivation}{mode}_cluster_{cluster}'
     cluster_key_y = f'dfy_{subject}_{motivation}{mode}_cluster_{cluster}'
@@ -182,7 +178,19 @@ def get_cluster_data(cleaned_data_dict, subject, motivation, mode, cluster):
     else:
         raise ValueError(f"Subject {subject} not found in the dataset.")
 
-
+def get_cluster_idxrule(idxrule_dict, subject, motivation, mode, cluster):
+    idxrule_key = f'dfx_{subject}_{motivation}{mode}_cluster_{cluster}'
+   
+    if subject in idxrule_dict:
+        subject_idxrules = idxrule_dict[subject]
+        if idxrule_key in subject_idxrules:
+            idxrule = subject_idxrules[idxrule_key]
+            return idxrule
+        else:
+            raise ValueError(f"Index rule for cluster {cluster} not found for subject {subject} with motivation {motivation} and mode {mode}.")
+    else:
+        raise ValueError(f"Subject {subject} not found in the idxrule dataset.")
+    
 
 ############################################
 ## DATA CLEANING AND CLUSTERING FUNCTIONS ##
@@ -385,17 +393,17 @@ def linear_transf(dfx : pd.DataFrame, dfy : pd.DataFrame,
     
     model_target = np.array((1,0))
     if rectx[0] > 0 and recty[-1] > 0:
-        screen_target = np.array(((rectx[3]+rectx[0])/2,(recty[3]+recty[0])/2))
+        screen_target = np.array(((rectx[1]+rectx[0])/2,(recty[1]+recty[0])/2))
     elif rectx[0] < 0 and recty[-1] > 0: 
         dfx = -1 * dfx
-        screen_target = np.array(((-rectx[3]-rectx[0])/2,(recty[3]+recty[0])/2))
+        screen_target = np.array(((-rectx[1]-rectx[0])/2,(recty[1]+recty[0])/2))
     elif rectx[0] > 0 and recty[-1] < 0:
         dfy = -1 * dfy
-        screen_target = np.array(((rectx[3]+rectx[0])/2,(-recty[3]-recty[0])/2)) 
+        screen_target = np.array(((rectx[1]+rectx[0])/2,(-recty[1]-recty[0])/2)) 
     else: 
         dfx = -1 * dfx
         dfy = -1 * dfy
-        screen_target = np.array(((-rectx[3]-rectx[0])/2,(-recty[3]-recty[0])/2))
+        screen_target = np.array(((-rectx[1]-rectx[0])/2,(-recty[1]-recty[0])/2))
         
     model_origin = np.array((np.cos(-math.pi*7/24),np.sin(-math.pi*7/24))) 
     screen_origin = np.array((0,0))
