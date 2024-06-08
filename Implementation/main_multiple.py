@@ -9,7 +9,7 @@ from typing import Tuple
 
 # Load the custom functions from .py file  
 from utils_data_multiple import load_multiple_data, plot_multiple_data, point_to_segment, cleaning_clustering_multiple_data
-from utils_data_multiple import saving_processed_mult_data, load_processed_mult_data, get_cluster_data
+from utils_data_multiple import saving_processed_mult_data, load_processed_mult_data, multiple_linear_transf
 
 
 ##############################################
@@ -39,17 +39,34 @@ def processing_data(n_clusters = 4, path = 'dataTrajectories') -> Tuple[pd.DataF
     saving_processed_mult_data(cleaned_data_dict = cleaned_data_dict, idxrule_dict = idxrule_dict,
                                folder_name = 'clustered_multiple_data')
     
-    return cleaned_data_dict, idxrule_dict 
+    scaled_data_dict, velocity_dict, results_dict = multiple_linear_transf(cleaned_data_dict, idxrule_dict, 
+                            segments, 
+                            first_subj = 25, last_subj = 37,
+                            n_clusters = 4,
+                            saving = True, 
+                            save_dir = 'subject_plots_2')
+    
+    saving_processed_mult_data(cleaned_data_dict = scaled_data_dict, idxrule_dict = results_dict, 
+                               folder_name = 'scaled_multiple_data')
+    saving_processed_mult_data(cleaned_data_dict = velocity_dict, 
+                               folder_name = 'velocity')
+    
+    return scaled_data_dict, results_dict 
 
 def main(loading = True, n_clusters = 4): 
     
     if loading: 
         print('Loading processed data...')
-        cleaned_data_dict, idxrule_dict = load_processed_mult_data(folder_name='clustered_multiple_data')
+        scaled_data_dict, results_dict = load_processed_mult_data(folder_name='scaled_multiple_data') 
+        #cleaned_data_dict, idxrule_dict = load_processed_mult_data(folder_name='clustered_multiple_data')
         
     else: 
         print('Loading and processing data...')
-        cleaned_data_dict, idxrule_dict = processing_data()
+        scaled_data_dict, results_dict = processing_data()
+        
+    print('Data loaded and processed :)')
+    print('Fitting paramaters for the optimized trajectory...')   
+    
 
 if __name__ == '__main__':
     main(loading = False)

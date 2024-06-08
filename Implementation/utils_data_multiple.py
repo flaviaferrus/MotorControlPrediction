@@ -73,7 +73,6 @@ def load_multiple_data(first_subj = 25, last_subj = 37,
                 data_dict[key_y] = dfy
     return data_dict
 
-
 def saving_processed_mult_data(cleaned_data_dict: dict = None, idxrule_dict: dict = None, 
                                folder_name: str = 'cleaned_multiple_data') -> None:
     
@@ -117,11 +116,14 @@ def saving_processed_mult_data(cleaned_data_dict: dict = None, idxrule_dict: dic
             
             # Save the idxrule_dict for the subject
             idxrule_path = os.path.join(subject_folder, f"idxrule_{subject}.json")
+            
+            # Convert np.array objects to lists before saving to JSON
+            idxrules_list = {key: value.tolist() for key, value in idxrules.items()}
+            
             with open(idxrule_path, 'w') as f:
-                json.dump(idxrules, f)
+                json.dump(idxrules_list, f)
         
     print("CSV and/or idxrule JSON files have been saved successfully.")
-
 
 def load_processed_mult_data(folder_name: str = 'cleaned_multiple_data') -> Tuple[dict, dict]:
     print('Loading the cleaned data...')
@@ -389,21 +391,30 @@ def cleaning_clustering_multiple_data(data_dict: dict,
 def linear_transf(dfx : pd.DataFrame, dfy : pd.DataFrame, 
                   rectx : np.ndarray, recty : np.ndarray) -> Tuple[pd.DataFrame, pd.DataFrame]:
     
-    model_target = np.array((1,0))
     if rectx[0] > 0 and recty[-1] > 0:
+        model_target = np.array((0.5,1))
         screen_target = np.array(((rectx[1]+rectx[0])/2,(recty[1]+recty[0])/2))
+        model_origin = np.array((np.cos(-math.pi*12/24),np.sin(-math.pi*12/24))) 
+
     elif rectx[0] < 0 and recty[-1] > 0: 
+        model_target = np.array((1.5,0))
         dfx = -1 * dfx
         screen_target = np.array(((-rectx[1]-rectx[0])/2,(recty[1]+recty[0])/2))
+        model_origin = np.array((np.cos(-math.pi*12/24),np.sin(-math.pi*12/24))) 
+        
     elif rectx[0] > 0 and recty[-1] < 0:
+        model_target = np.array((1.5,0))
         dfy = -1 * dfy
         screen_target = np.array(((rectx[1]+rectx[0])/2,(-recty[1]-recty[0])/2)) 
+        model_origin = np.array((np.cos(-math.pi*12/24),np.sin(-math.pi*12/24))) 
+        
     else: 
+        model_target = np.array((0.5,1))
         dfx = -1 * dfx
         dfy = -1 * dfy
         screen_target = np.array(((-rectx[1]-rectx[0])/2,(-recty[1]-recty[0])/2))
-        
-    model_origin = np.array((np.cos(-math.pi*7/24),np.sin(-math.pi*7/24))) 
+        model_origin = np.array((np.cos(-math.pi*12/24),np.sin(-math.pi*12/24))) 
+   
     screen_origin = np.array((0,0))
 
     v_model=model_target-model_origin
@@ -423,6 +434,80 @@ def linear_transf(dfx : pd.DataFrame, dfy : pd.DataFrame,
     dfy_=A[1,0]*dfx+A[1,1]*dfy+b[1]
     
     return dfx_, dfy_
+
+def multiple_linear_transf(cleaned_data_dict: dict, idxrule_dict: dict, 
+                            segments: List[Tuple[Tuple[float, float], Tuple[float, float]]], 
+                            first_subj: int = 25, last_subj: int = 37,
+                            n_clusters = 4,
+                            saving = True, 
+                            save_dir: str = 'subject_plots'): 
+    
+    velocity_dict = {}
+    results_dict = {}
+    scaled_data_dict = {}
+    
+    for subject in range(first_subj, last_subj):
+        print('Rotating and scaling the trajectories for subject ', subject )
+        fig, axes = plt.subplots(3, 2, figsize=(15, 10))  # 3 rows, 2 columns of subplots
+        fig.suptitle(f'Subject {subject} Rotated Trajectories', fontsize=16)
+        subplot_index = 0
+        pic_name = f'Scaled Trajectories-{subject}'
+
+        colors = ['r', 'g', 'b', 'c']
+        
+        for motivation in range(1, 4):
+            
+            for mode in range(1, 3):
+                ax = axes[subplot_index // 2, subplot_index % 2]
+                
+                for cluster in range(n_clusters):
+                    key_ = f'{subject}_{motivation}{mode}_cluster_{cluster}'
+                    key_x = f'dfx_{subject}_{motivation}{mode}_cluster_{cluster}'
+                    key_y = f'dfy_{subject}_{motivation}{mode}_cluster_{cluster}'
+                
+                    dfx, dfy = get_cluster_data(cleaned_data_dict, subject, motivation, mode, cluster)
+                    idxrule = get_cluster_idxrule(idxrule_dict, subject, motivation, mode, cluster)
+                    
+                    dfx_, dfy_ = linear_transf(dfx, dfy, segments[cluster][0], segments[cluster][1])
+                    dfv = experimental_velocity(dfx_, dfy_)
+                    
+                    if len(idxrule) > 0:
+                        mean_idxrule = sum(idxrule) / len(idxrule)
+                    else: 
+                        mean_idxrule = 0
+                        
+                    T = mean_idxrule / 1000
+                    vel=dfv.T.max().mean()
+                    
+                    # Initialize the dictionaries if not already
+                    if subject not in velocity_dict:
+                        velocity_dict[subject] = {}
+                    if subject not in results_dict:
+                        results_dict[subject] = {}
+                    if subject not in scaled_data_dict:
+                        scaled_data_dict[subject] = {}
+                        
+                    velocity_dict[subject][key_] = dfv
+                    results_dict[subject][key_] = np.array([ T, vel ])
+                    scaled_data_dict[subject][key_x] = dfx_
+                    scaled_data_dict[subject][key_y] = dfy_ 
+                    
+                    # Plotting the data
+                    color = colors[cluster % len(colors)]
+                    for i in range(dfx.shape[0]):
+                        ax.plot(dfx_.iloc[i, :], dfy_.iloc[i, :], color=color, linestyle='-', linewidth=1, markersize=2,
+                                label=f'Cluster {cluster}' if i == 0 else "")
+                        
+                subplot_index += 1
+                
+        fig.tight_layout(rect=[0, 0, 1, 0.96])  
+        
+        if saving:
+            plt.savefig(os.path.join(save_dir, pic_name))
+        
+        plt.close(fig)
+
+    return scaled_data_dict, velocity_dict, results_dict 
 
 
 
@@ -444,6 +529,7 @@ def experimental_velocity(dfx : pd.DataFrame, dfy : pd.DataFrame) -> pd.DataFram
     dfv = pd.DataFrame(dfv, index=dfx1.index, columns=dfx1.columns)
     
     return dfv
+
 
 
 #########################################
@@ -560,3 +646,5 @@ def plot_multiple_data(data_dict : list,
             plt.savefig(save_path)
         
         plt.show()
+
+
