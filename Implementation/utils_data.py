@@ -117,7 +117,7 @@ def plot_data(dfx : pd.DataFrame, dfy : pd.DataFrame,
         elif (pt[0] > 0 and pt[1] > 0): #cluster == 0: # Top right 2, 0
             pt0 = (pt[0] - 1, pt[1] + 1.75)
             pt1 = (pt[0] + 1, pt[1] - 1.75)
-            pt2 = (pt0[0] + 1.25, pt0[1] + 1 )
+            pt2 = (pt0[0] + 1.25, pt0[1] + 1)
             pt3 = (pt1[0] + 1.25, pt1[1] + 1)
         else: # bottom left 1 (notebook 3)
             pt0 = (pt[0] + 1, pt[1] + 1.75)
