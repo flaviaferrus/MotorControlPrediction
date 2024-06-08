@@ -5,12 +5,13 @@
 import numpy as np
 import math
 import matplotlib.pyplot as plt
-import seaborn as sns
+#import seaborn as sns
 import pandas as pd
 import scipy
 import scipy.io
 import os
-import random
+import json
+#import random
 from sklearn.cluster import KMeans
 from typing import Tuple, List, Dict
 import warnings
@@ -72,8 +73,13 @@ def load_multiple_data(first_subj = 25, last_subj = 37,
                 data_dict[key_y] = dfy
     return data_dict
 
-def saving_processed_mult_data(cleaned_data_dict: dict, 
+
+def saving_processed_mult_data(cleaned_data_dict: dict = None, idxrule_dict: dict = None, 
                                folder_name: str = 'cleaned_multiple_data') -> None:
+    
+    if cleaned_data_dict is None and idxrule_dict is None:
+        print("No data to save.")
+        return
     
     print('Saving the cleaned data...')
     
@@ -90,22 +96,35 @@ def saving_processed_mult_data(cleaned_data_dict: dict,
     if not os.path.exists(data_folder):
         os.makedirs(data_folder)
         
-    for subject, subject_data in cleaned_data_dict.items():
-        subject_folder = os.path.join(data_folder, f'subject_{subject}')
-        if not os.path.exists(subject_folder):
-            os.makedirs(subject_folder)
-        
-        for key, df in subject_data.items():
-            # Define the file path
-            file_path = os.path.join(subject_folder, f"{key}.csv")
+    if cleaned_data_dict is not None:
+        for subject, subject_data in cleaned_data_dict.items():
+            subject_folder = os.path.join(data_folder, f'subject_{subject}')
+            if not os.path.exists(subject_folder):
+                os.makedirs(subject_folder)
             
-            # Save the DataFrame to a CSV file
-            df.to_csv(file_path, index=False)
+            for key, df in subject_data.items():
+                # Define the file path for the DataFrame
+                file_path = os.path.join(subject_folder, f"{key}.csv")
+                
+                # Save the DataFrame to a CSV file
+                df.to_csv(file_path, index=False)
         
-    print("CSV files have been saved successfully.")
-    
-    def load_processed_mult_data(folder_name: str = 'cleaned_multiple_data') -> dict:
-        print('Loading the cleaned data...')
+    if idxrule_dict is not None:
+        for subject, idxrules in idxrule_dict.items():
+            subject_folder = os.path.join(data_folder, f'subject_{subject}')
+            if not os.path.exists(subject_folder):
+                os.makedirs(subject_folder)
+            
+            # Save the idxrule_dict for the subject
+            idxrule_path = os.path.join(subject_folder, f"idxrule_{subject}.json")
+            with open(idxrule_path, 'w') as f:
+                json.dump(idxrules, f)
+        
+    print("CSV and/or idxrule JSON files have been saved successfully.")
+
+
+def load_processed_mult_data(folder_name: str = 'cleaned_multiple_data') -> Tuple[dict, dict]:
+    print('Loading the cleaned data...')
     
     # Get the current directory
     current_dir = os.getcwd()
@@ -121,6 +140,7 @@ def saving_processed_mult_data(cleaned_data_dict: dict,
         raise FileNotFoundError(f"The folder {data_folder} does not exist.")
         
     cleaned_data_dict = {}
+    idxrule_dict = {}
     
     # Iterate through each subject's folder
     for subject_folder in os.listdir(data_folder):
@@ -129,16 +149,23 @@ def saving_processed_mult_data(cleaned_data_dict: dict,
             subject_key = int(subject_folder.split('_')[1])
             cleaned_data_dict[subject_key] = {}
             
-            # Iterate through each CSV file in the subject's folder
+            # Iterate through each file in the subject's folder
             for file_name in os.listdir(subject_path):
+                file_path = os.path.join(subject_path, file_name)
                 if file_name.endswith('.csv'):
-                    file_path = os.path.join(subject_path, file_name)
                     df = pd.read_csv(file_path)
                     key = file_name.split('.csv')[0]
                     cleaned_data_dict[subject_key][key] = df
+                elif file_name.startswith('idxrule_') and file_name.endswith('.json'):
+                    with open(file_path, 'r') as f:
+                        idxrule_dict[subject_key] = json.load(f)
     
-    print("CSV files have been loaded successfully.")
-    return cleaned_data_dict
+    print("CSV and idxrule JSON files have been loaded successfully.")
+    return cleaned_data_dict, idxrule_dict
+
+# Example usage:
+# cleaned_data_dict, idxrule_dict = load_processed_mult_data(folder_name='clustered_multiple_data')
+
 
 def get_cluster_data(cleaned_data_dict, subject, motivation, mode, cluster):
     cluster_key_x = f'dfx_{subject}_{motivation}{mode}_cluster_{cluster}'
@@ -283,6 +310,7 @@ def cleaning_clustering_data(dfx : pd.DataFrame, dfy : pd.DataFrame,
 def cleaning_clustering_multiple_data(data_dict: dict, 
                                       segments: List[Tuple[Tuple[float, float], Tuple[float, float]]], 
                                       first_subj: int = 25, last_subj: int = 37,
+                                      saving = True, 
                                       save_dir: str = 'subject_plots') -> Tuple[Dict[int, Dict[str, pd.DataFrame]], Dict[int, Dict[str, List[int]]]]:
     
     if not os.path.exists(save_dir):
@@ -308,7 +336,7 @@ def cleaning_clustering_multiple_data(data_dict: dict,
                 key_y = f'dfy_{subject}_{motivation}{mode}'
                 pic_name = f'Cleaned Trajectories-{subject}-M{motivation}-C{mode}'
                 
-                print('Cleaning and clustering subject data...', pic_name)
+                #print('Cleaning and clustering subject data...', pic_name)
                 df, idxrule = cleaning_clustering_data(data_dict[key_x], data_dict[key_y], segments)
                 
                 # Initialize the dictionaries if not already
@@ -338,10 +366,78 @@ def cleaning_clustering_multiple_data(data_dict: dict,
                 subplot_index += 1
         
         fig.tight_layout(rect=[0, 0, 1, 0.96])  
-        plt.savefig(os.path.join(save_dir, f'Subject_{subject}_clustered_trajectories.png'))
+        
+        if saving:
+            plt.savefig(os.path.join(save_dir, f'Subject_{subject}_clustered_trajectories.png'))
+        
         plt.close(fig)
-    
+        
     return cleaned_data_dict, idxrule_dict
+
+
+
+#########################################
+##          PROCESSING DATA            ##
+#########################################
+
+def linear_transf(dfx : pd.DataFrame, dfy : pd.DataFrame, 
+                  rectx : np.ndarray, recty : np.ndarray) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    
+    model_target = np.array((1,0))
+    if rectx[0] > 0 and recty[-1] > 0:
+        screen_target = np.array(((rectx[3]+rectx[0])/2,(recty[3]+recty[0])/2))
+    elif rectx[0] < 0 and recty[-1] > 0: 
+        dfx = -1 * dfx
+        screen_target = np.array(((-rectx[3]-rectx[0])/2,(recty[3]+recty[0])/2))
+    elif rectx[0] > 0 and recty[-1] < 0:
+        dfy = -1 * dfy
+        screen_target = np.array(((rectx[3]+rectx[0])/2,(-recty[3]-recty[0])/2)) 
+    else: 
+        dfx = -1 * dfx
+        dfy = -1 * dfy
+        screen_target = np.array(((-rectx[3]-rectx[0])/2,(-recty[3]-recty[0])/2))
+        
+    model_origin = np.array((np.cos(-math.pi*7/24),np.sin(-math.pi*7/24))) 
+    screen_origin = np.array((0,0))
+
+    v_model=model_target-model_origin
+    v_model_ort=np.array((v_model[1],-v_model[0]))
+
+    v_screen=screen_target-screen_origin
+    v_screen_ort=np.array((v_screen[1],-v_screen[0]))
+
+    model_M=np.vstack((np.append(model_origin,1),np.append(model_target,1),np.append(v_model_ort,0))).T
+    screen_M=np.vstack((np.append(screen_origin,1),np.append(screen_target,1),np.append(v_screen_ort,0))).T
+
+    M=np.dot(model_M,np.linalg.inv(screen_M))
+    A=M[:2,:2]
+    b=M[:2,-1:].flatten()
+    
+    dfx_=A[0,0]*dfx+A[0,1]*dfy+b[0]
+    dfy_=A[1,0]*dfx+A[1,1]*dfy+b[1]
+    
+    return dfx_, dfy_
+
+
+
+#########################################
+##          COMPUTING VELOCITY         ##
+#########################################
+
+def experimental_velocity(dfx : pd.DataFrame, dfy : pd.DataFrame) -> pd.DataFrame:
+    # Computing velocity of each point along the trajectories
+    dfx1=dfx.iloc[:,1:]
+    dfx1.columns = range(dfx1.shape[1])
+    dfvx=dfx1.values-dfx.iloc[:,:-1].values
+
+    dfy1=dfy.iloc[:,1:]
+    dfy1.columns = range(dfy1.shape[1])
+    dfvy=dfy1.values-dfy.iloc[:,:-1].values
+
+    dfv=np.sqrt(np.square(dfvx)+np.square(dfvy))
+    dfv = pd.DataFrame(dfv, index=dfx1.index, columns=dfx1.columns)
+    
+    return dfv
 
 
 #########################################
