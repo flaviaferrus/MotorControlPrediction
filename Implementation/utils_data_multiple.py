@@ -182,11 +182,15 @@ def get_cluster_data(cleaned_data_dict, subject, motivation, mode, cluster):
 
 def get_cluster_idxrule(idxrule_dict, subject, motivation, mode, cluster):
     idxrule_key = f'dfx_{subject}_{motivation}{mode}_cluster_{cluster}'
+    res_key = f'{subject}_{motivation}{mode}_cluster_{cluster}'
    
     if subject in idxrule_dict:
         subject_idxrules = idxrule_dict[subject]
         if idxrule_key in subject_idxrules:
             idxrule = subject_idxrules[idxrule_key]
+            return idxrule
+        elif res_key in subject_idxrules:
+            idxrule = subject_idxrules[res_key]
             return idxrule
         else:
             raise ValueError(f"Index rule for cluster {cluster} not found for subject {subject} with motivation {motivation} and mode {mode}.")
