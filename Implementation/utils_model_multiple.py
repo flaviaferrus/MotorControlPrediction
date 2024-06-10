@@ -13,7 +13,7 @@ import warnings
 from typing import Tuple, List, Dict
 import json
 from scipy.optimize import OptimizeResult
-
+from scipy.optimize import minimize_scalar
 
 
 #########################################
@@ -21,7 +21,7 @@ from scipy.optimize import OptimizeResult
 #########################################
 
 from utils_data_multiple import get_cluster_data, get_cluster_idxrule 
-
+from utils_model import ComputeFunctional, ComputeVel 
 
 #########################################
 ##        NUMERICAL SIMULATION         ##
