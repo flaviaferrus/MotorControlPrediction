@@ -9,8 +9,10 @@ import pandas as pd
 import scipy
 from scipy.stats import ks_2samp 
 import os
-from typing import Tuple
 import warnings
+from typing import Tuple, List, Dict
+import json
+from scipy.optimize import OptimizeResult
 
 
 
@@ -18,57 +20,433 @@ import warnings
 ##          CUSTOM IMPORTS             ##
 #########################################
 
-from utils_model import generate_trajectory, plot_simulation, generate_trajectory_vel
-from utils_model import optimize_Sigma
+from utils_data_multiple import get_cluster_data, get_cluster_idxrule 
+
+
+#########################################
+##        NUMERICAL SIMULATION         ##
+#########################################
+
+
+def numericalSimulation(x_0 = (0,0,0,0),  p_T = 1.0, 
+                        sigma = 0.5, gamma = 0.5, epsilon = 0.5, alpha = 0.5,
+                        u_0 = (0,0), l_0 = (0,0,0,0), 
+                        i_max = 1000, dt = 1./500,
+                        Autoregr = True, 
+                        Arc = True, angle=math.pi*7/24, angle0=0, p=(.2,0), r=.1): 
+    
+    ## Set the initial conditions: 
+    p1, p2, v1, v2 = x_0
+    u1, u2 = u_0
+    l1, l2, l3, l4 = l_0
+    
+    ## Initialize the loop
+    i = 0
+    t = 0.
+    Wt = 0
+    l = p_T - p1
+    
+    ## Initialize the trajectory vector
+    p1_ = []
+    p2_ = []
+    v1_ = []
+    v2_ = []
+    
+    ## Initialize the utility vector 
+    u1_ = []
+    u2_ = []
+     
+    ## Model time evolution definition following the system's dynamics
+    while (i < i_max and p1 < p_T):
+        
+        t = i * dt
+        if ( Autoregr == True ):
+            if np.linalg.norm(sigma) > 0:
+                W_increment=np.random.normal(0.,np.sqrt(np.abs(sigma)),1)[0]
+            else: 
+                W_increment=np.random.normal(0.,np.sqrt(dt),1)[0]
+            Wt = Wt + W_increment
+        else: 
+            if np.linalg.norm(sigma) > 0:
+                Wt = np.random.normal(0.,np.sqrt(np.abs(sigma)),1)[0] 
+                #Wt = np.random.normal(0.,np.sqrt(dt*sigma),1)[0] 
+            else: 
+                Wt = np.random.normal(0.,np.sqrt(dt),1)[0] 
+            #Wt = np.random.normal(0.,np.sqrt(dt),1)[0] 
+           
+        ## System's dynamics:
+        
+        # Control vector
+        u1 = - (l * l3) / ( 2 * Wt * l * l2 * sigma * np.exp(t/gamma) - alpha * epsilon + epsilon ) * np.exp(t/gamma)
+        u2 = - (l * l4) / (alpha * epsilon) * np.exp(t/gamma)
+        # Trajectory evolution differential equations 
+        p1 = p1 + dt * v1
+        p2 = p2 + dt * (v2 + Wt * sigma * u1**2)
+        v1 = v1 + dt * u1
+        v2 = v2 + dt * u2 
+        # Lagrange multipliers
+        l1 = l1
+        if (np.linalg.norm(p1 - p_T) < dt * v1):
+            l2 = l2 - dt * (2 * p2 * np.exp(- t / gamma)) 
+        l3 = l3 - dt * l1
+        l4 = l4 - dt * l2 
+        # Controller over the via point (circular trajectory)
+        if(Arc):
+            p1_.append((1+p2)*np.cos(angle*(p1/p_T-1)+angle0))
+            p2_.append((1+p2)*np.sin(angle*(p1/p_T-1)+angle0))
+        else:
+            p1_.append(p1)
+            p2_.append(p2)
+        v1_.append(v1)
+        v2_.append(v2)
+        u1_.append(u1)
+        u2_.append(u2)
+        
+        i = i + 1
+        
+    return np.array(p1_), np.array(p2_), np.array(v1_), np.array(v2_), np.array(u1_), np.array(u2_), t
+
+def arc_length(x, y):
+    '''
+        Function that calculates the arc length of a curve defined by points (x, y).
+    '''
+    npts = len(x)
+    arc = np.sqrt((x[1] - x[0])**2 + (y[1] - y[0])**2)
+    for k in range(1, npts):
+        arc = arc + np.sqrt((x[k] - x[k-1])**2 + (y[k] - y[k-1])**2)
+
+    return arc
 
 
 
+#########################################
+##         GENERATE TRAJECTORIES       ##
+#########################################
+
+def generate_trajectory(params = ( 3.7, -0.15679707,  0.97252444,  0.54660283, -6.75775885, -0.06253371), 
+                        sigma = 0, gamma = 0.5, epsilon = 0.1, alpha = 0.5, timestep=1/500, 
+                        plotting = True):
+    '''
+        Function that computes and plots the trajectory for the initial given parameters 
+        (control function and lagrange multipliers) found by optimizing the functional in 
+        terms of the parameters. For fixed values of sigma, gamma, epsilon and alpha.
+    ''' 
+    initial_cond = scipy.optimize.minimize(ComputeFunctional, params, args=(), method=None)
+    parameters = initial_cond.x
+    x, y, v, w, ux, uy, T= numericalSimulation(x_0 = (0,0,0,0),  p_T = 2.0, 
+                        sigma = sigma, gamma = gamma, epsilon = epsilon, alpha = alpha,
+                        u_0 = parameters[:2], l_0 = parameters[2:], 
+                        i_max = 1000, dt = timestep,
+                        Autoregr = True, 
+                        Arc = True, angle=math.pi*12/24, angle0=0, p=(.2,0), r=.1
+                        )
+    if plotting: 
+        plot_trajectory(x,y, showing = True)
+    return x, y, T
+
+def generate_trajectory_vel(params = (.5, .5, .5), 
+                            parameters = ( 3.7, -0.15679707,  0.97252444,  0.54660283, -6.75775885, -0.06253371),
+                            sigma = 0, timestep=1/500, 
+                            plotting = True, T = 1.3, vel = 0.1) -> Tuple[np.ndarray, np.ndarray]:
+    '''
+        Function that computes and plots the trajectory for the initial given parameters 
+        (sigma, gamma, epsilon and alpha) found by optimizing the velocity in 
+        terms of the parameters. 
+    ''' 
+    
+    # Define a partial function to pass additional arguments to ComputeVel
+    partial_compute_vel = lambda params: ComputeVel(params, vel=vel, T=T, sigma=sigma)   
+    # Use scipy.optimize.minimize with the partial function
+    new_params = scipy.optimize.minimize(partial_compute_vel, params, args=(), method=None)
+    gamma, epsilon, alpha = new_params.x
+    # Call numericalSimulation with the optimized parameters
+    x, y, v, w, ux, uy, T= numericalSimulation(x_0 = (0,0,0,0),  p_T = 2.0, 
+                        sigma = sigma, gamma = gamma, epsilon = epsilon, alpha = alpha,
+                        u_0 = parameters[:2], l_0 = parameters[2:], 
+                        i_max = 1000, dt = timestep,
+                        Autoregr = True, 
+                        Arc = True, angle=math.pi*12/24, angle0=0, p=(.2,0), r=.1
+                        )
+    # Plot trajectory if required
+    if plotting: 
+        plot_trajectory(x, y, showing=True)
+        
+    return x, y, new_params
+
+def computeSamples(parameters, new_params : np.ndarray = (0,0,0),
+                   xT_samples : list = [], n = 50, timestep = 1/500, 
+                   parameters2 = (3.7, -0.15679707,  0.97252444,  0.54660283, -6.75775885, -0.06253371)
+                   ) -> np.float64:
+    '''
+        Kolmogorov Smirnov Test
+    '''
+    
+    sigma = parameters
+    gamma, epsilon, alpha = new_params.x
+     
+    xT2_samples=[]
+
+    for i in range(n):
+        x, y, v, w, ux, uy, T2= numericalSimulation(x_0 = (0,0,0,0),  p_T = 2.0, 
+                            sigma = sigma*0.012, gamma = gamma, epsilon = epsilon, alpha = alpha,
+                            u_0 = parameters2[:2], l_0 = parameters2[2:], 
+                            i_max = 1000, dt = timestep,
+                            Autoregr = True, 
+                            Arc = True, angle=math.pi*12/24, angle0=0, p=(.2,0), r=.1)
+        xT2_samples.append(x.flatten()[-1])
+            
+    return ks_2samp(xT_samples, xT2_samples)[0]
+
+def optimize_Sigma(dfx, dfy, idxrule, new_params, 
+                   parameters=(3.7, -0.15679707,  0.97252444,  0.54660283, -6.75775885, -0.06253371),
+                   timestep=1/500, plotting=False):
+    xT_samples = []
+    dfx.reset_index(drop=True, inplace=True)
+    
+    for i, row in dfx.iterrows():
+        if idxrule[i] > 0:
+            xT_samples.append(dfx.loc[i][idxrule[i]-1])
+    
+    partial_computeSamples = lambda params: computeSamples(params, new_params=new_params, xT_samples=xT_samples)
+    
+    # Setting bounds and options
+    bounds = (0.01, 10)  # Example bounds, adjust as necessary
+    tol = 1e-6
+    options = {'maxiter': 1000}
+    
+    opt_Sigma = minimize_scalar(partial_computeSamples, bounds=bounds, method='bounded', tol=tol, options=options)
+    
+    # Check if the optimizer has converged
+    if not opt_Sigma.success:
+        raise ValueError("Optimization did not converge: ", opt_Sigma.message)
+    
+    gamma, epsilon, alpha = new_params.x
+    sigma = opt_Sigma.x
+    
+    # Call numericalSimulation with the optimized parameters
+    x, y, v, w, ux, uy, T = numericalSimulation(x_0=(0, 0, 0, 0), p_T=2.0, 
+                                                sigma=sigma * 0.005, gamma=gamma, epsilon=epsilon, alpha=alpha,
+                                                u_0=parameters[:2], l_0=parameters[2:], 
+                                                i_max=1000, dt=timestep,
+                                                Autoregr=True, 
+                                                Arc=True, angle=math.pi * 12 / 24, angle0=0, p=(.2, 0), r=.1)
+    # Plot trajectory if required
+    if plotting: 
+        plot_trajectory(x, y, showing=True) 
+        
+    return x, y, opt_Sigma
+
+
+
+#########################################
+##         PLOTTING TRAJECTORIES       ##
+#########################################
+
+def plot_trajectory(x, y, showing = True, via = False, plot_title = 'Simulated Trajectory'):
+    '''
+        Function that plots the given trajectory (x(t), y(t)). 
+    ''' 
+    plt.plot(x,y,color='blue', label=plot_title, alpha = 1)
+    if via:
+        angle=math.pi*12/24
+        T_1=.2
+        plt.plot(np.cos(angle*(T_1-1)),np.sin(angle*(T_1-1)),marker='o',markersize=20)
+    if showing: 
+        plt.show()
+        
+def plot_simulation(x : np.ndarray , y : np.ndarray,
+                    dfx : pd.DataFrame, dfy : pd.DataFrame,
+                    cluster : int, subject : int, 
+                    key_: str,
+                    pic_name = 'Trajectories', 
+                    folder_name = 'pics',
+                    saving_plot = False): 
+    '''
+        Function that plots the given trajectory (x(t), y(t)) and 
+        the experimental data (dfx, dfy) for the given cluster. 
+    '''
+    for i in range(len(dfx)):
+        plt.plot(dfx.iloc[i], dfy.iloc[i], color='gray', alpha=0.5)
+    
+    plot_trajectory(x,y, showing = False)
+    plt.title(f'Trajectories for subject {subject} in Cluster {cluster}')
+    plt.grid(True)
+    plt.xlabel('X')
+    plt.ylabel('Y')
+    plt.legend()
+    if saving_plot:
+        # Check if the 'pics' folder exists, if not, create it
+        if not os.path.exists('pics'):
+            os.makedirs('pics')
+        # Save the figure with a specific name based on the cluster
+        filename = f'{pic_name}_{key_}.png'
+        filepath = os.path.join(folder_name, filename)
+        plt.savefig(filepath)
+    
+    plt.show()
+    
+
+
+#########################################
+##          SAVING PARAMETERS         ##
+#########################################
+
+def saving_new_params(new_params: dict, folder_name: str = 'new_params_data') -> None:
+    if new_params is None:
+        print("No data to save.")
+        return
+
+    print('Saving the new parameters...')
+
+    # Get the current directory
+    current_dir = os.getcwd()
+
+    # Navigate one step up (to the parent directory)
+    parent_dir = os.path.dirname(current_dir)
+
+    # Enter the 'data' folder
+    data_folder = os.path.join(parent_dir, folder_name)
+
+    # Check if the folder exists, if not, create it
+    if not os.path.exists(data_folder):
+        os.makedirs(data_folder)
+
+    for subject, subject_params in new_params.items():
+        subject_folder = os.path.join(data_folder, f'subject_{subject}')
+        if not os.path.exists(subject_folder):
+            os.makedirs(subject_folder)
+
+        for key, result in subject_params.items():
+            # Convert OptimizeResult to a dictionary and save each component
+            result_dict = {attr: value.tolist() if isinstance(value, np.ndarray) else value for attr, value in result.items()}
+            
+            # Define the file path for the JSON
+            file_path = os.path.join(subject_folder, f"{key}.json")
+
+            # Save the result dictionary to a JSON file
+            with open(file_path, 'w') as f:
+                json.dump(result_dict, f)
+
+    print("Parameters JSON files have been saved successfully.")
+
+def load_params(folder_name: str = 'new_params_data') -> dict:
+    print('Loading the new parameters...')
+    
+    # Get the current directory
+    current_dir = os.getcwd()
+
+    # Navigate one step up (to the parent directory)
+    parent_dir = os.path.dirname(current_dir)
+
+    # Enter the 'data' folder
+    data_folder = os.path.join(parent_dir, folder_name)
+
+    # Check if the folder exists
+    if not os.path.exists(data_folder):
+        raise FileNotFoundError(f"The folder {data_folder} does not exist.")
+
+    new_params = {}
+
+    # Iterate over subjects in the folder
+    for subject_folder in os.listdir(data_folder):
+        subject_path = os.path.join(data_folder, subject_folder)
+        if os.path.isdir(subject_path):
+            subject_id = int(subject_folder.split('_')[-1])  # Extract subject ID
+            new_params[subject_id] = {}
+            
+            # Iterate over JSON files in the subject folder
+            for file_name in os.listdir(subject_path):
+                if file_name.endswith('.json'):
+                    key = file_name.replace('.json', '')
+                    file_path = os.path.join(subject_path, file_name)
+                    
+                    with open(file_path, 'r') as f:
+                        result_dict = json.load(f)
+                    
+                    # Convert dictionary back to OptimizeResult
+                    result = OptimizeResult(**{attr: np.array(value) if isinstance(value, list) else value for attr, value in result_dict.items()})
+                    
+                    new_params[subject_id][key] = result
+
+    print("New parameters have been loaded successfully.")
+    return new_params
 
 
 #########################################
 ##          FITTING PARAMETERS         ##
 #########################################
-         
-def fitParamaters(results : pd.DataFrame, 
-                  dfx : list, dfy : list, 
-                  n_clusters = 4) -> Tuple[list, list]:
+
+
+def fitParamaters_mult(scaled_data_dict: dict,
+                  idxrule_dict: dict, 
+                  results_dict: dict,
+                  segments:  List[Tuple[Tuple[float, float], Tuple[float, float]]], 
+                  first_subj: int = 25, last_subj: int = 37,
+                  n_clusters = 4, 
+                  folder_name = 'fitted_trajectories', 
+                  saving = False, 
+                  saving_data = True) -> Tuple[list, list]:
     
-    new_params = [[] for _ in range(n_clusters)]
-    opt_sigma = [[] for _ in range(n_clusters)]
+    new_params = {}
+    opt_sigma = {}
     
-    for cluster in range(n_clusters): 
+     
+    for subject in range(first_subj, last_subj):
+        print('Computing trajectory with optimized velocity for subject ', subject )
         
-        print('Computing trajectory with optimized velocity for cluser: ', cluster)
-        
-        ## Generate the optimal trajectory by optimizing the Functional in terms of the time T 
-        x, y, T = generate_trajectory(plotting = False)
-        plot_simulation(x, y, dfx[cluster], dfy[cluster], 
-                    cluster = cluster, pic_name = 'Trajectories_optFunctional', 
-                    saving_plot = True)
-        
-        ## Generate the optimal trajectory with the time provided from optimizing the Functional 
-        # by optimizing the velocity in terms of the parameters (alpha, epsilon, gamma)
-        x_, y_, new_params[cluster] = generate_trajectory_vel(plotting = False, 
-                                 T = T,
-                                 vel = results[results['cluster'] == cluster].max_vel.values[0])
-        plot_simulation(x_, y_, dfx[cluster], dfy[cluster], 
-                    cluster = cluster, pic_name = 'Trajectories_optVel', 
-                    saving_plot = True)
-        
-        ## Generate the optimal trajectory with the optimum stopping time and parameters
-        # by optimizing the Kolmogorov Sirnov estimate in terms of the sigma
-            # Converting idxrule to array from string
-        idxr = results[results['cluster'] == cluster].idxrule.values[0]
-        idxrule = np.fromstring(idxr[1: -1], dtype = int, sep = ', ')
-        
-        x__, y__, opt_sigma[cluster] = optimize_Sigma(dfx[cluster] , dfy[cluster],
-                                            idxrule = idxrule, 
-                                            new_params = new_params[cluster])
-        plot_simulation(x__, y__, dfx[cluster], dfy[cluster], 
-                        cluster = cluster, pic_name = 'Trajectories_optSigma', 
-                        saving_plot = True)
-        
-        print('Parameters estimated:')
-        print(new_params[cluster].x, opt_sigma[cluster].x)
-        
+        for motivation in range(1, 4):
+            
+            for mode in range(1, 3):
+                
+                for cluster in range(n_clusters):
+                    
+                    key_ = f'{subject}_{motivation}{mode}_cluster_{cluster}'
+                    # Initialize the dictionaries if not already
+                    if subject not in new_params:
+                        new_params[subject] = {}
+                    if subject not in opt_sigma:
+                        opt_sigma[subject] = {}
+                        
+                    dfx, dfy = get_cluster_data(scaled_data_dict, subject, motivation, mode, cluster)
+                    idxrule = get_cluster_idxrule(idxrule_dict, subject, motivation, mode, cluster)
+                    results = get_cluster_idxrule(results_dict, subject, motivation, mode, cluster)
+                    ## !
+                    if(len(dfx) > 0):
+                        ## Generate the optimal trajectory by optimizing the Functional in terms of the time T 
+                        x, y, T = generate_trajectory(plotting = False)
+                        plot_simulation(x, y, dfx, dfy, 
+                                    cluster = cluster, subject = subject, 
+                                    key_ = key_, 
+                                    pic_name = 'Trajectories_optFunctional', 
+                                    folder_name = folder_name,
+                                    saving_plot = saving)
+                        
+                        ## Generate the optimal trajectory with the time provided from optimizing the Functional 
+                        # by optimizing the velocity in terms of the parameters (alpha, epsilon, gamma)
+                        x_, y_, new_params[subject][key_] = generate_trajectory_vel(plotting = False, 
+                                                    T = T,
+                                                    vel = results[1])
+                        plot_simulation(x_, y_, dfx, dfy, 
+                                    cluster = cluster,  subject = subject, 
+                                    key_ = key_, 
+                                    pic_name = 'Trajectories_optVel', 
+                                    folder_name = folder_name,
+                                    saving_plot = saving)
+                        
+                        ## Generate the optimal trajectory with the optimum stopping time and parameters
+                        # by optimizing the Kolmogorov Sirnov estimate in terms of the sigma
+
+                        idxr = np.array(idxrule)
+                        x__, y__, opt_sigma[subject][key_] = optimize_Sigma(dfx, dfy,
+                                                            idxrule = idxr, 
+                                                            new_params = new_params[subject][key_])
+                        plot_simulation(x__, y__, dfx, dfy, 
+                                        cluster = cluster,  subject = subject, 
+                                        key_ = key_, pic_name = 'Trajectories_optSigma', 
+                                        folder_name = folder_name,
+                                        saving_plot = saving)
+                        
+    saving_new_params(new_params, folder_name= 'fitted_params')
+    saving_new_params(opt_sigma, folder_name= 'fitted_params_sigma')
+                    
     return new_params, opt_sigma
