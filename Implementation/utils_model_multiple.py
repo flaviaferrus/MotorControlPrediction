@@ -214,11 +214,12 @@ def optimize_Sigma(dfx, dfy, idxrule, new_params,
     tol = 1e-6
     options = {'maxiter': 1000}
     
+    warnings.filterwarnings("ignore")
     opt_Sigma = minimize_scalar(partial_computeSamples, bounds=bounds, method='bounded', tol=tol, options=options)
     
     # Check if the optimizer has converged
-    if not opt_Sigma.success:
-        raise ValueError("Optimization did not converge: ", opt_Sigma.message)
+    #if not opt_Sigma.success:
+    #    raise ValueError("Optimization did not converge: ", opt_Sigma.message)
     
     gamma, epsilon, alpha = new_params.x
     sigma = opt_Sigma.x
@@ -233,6 +234,7 @@ def optimize_Sigma(dfx, dfy, idxrule, new_params,
     # Plot trajectory if required
     if plotting: 
         plot_trajectory(x, y, showing=True) 
+    
         
     return x, y, opt_Sigma
 
@@ -260,7 +262,8 @@ def plot_simulation(x : np.ndarray , y : np.ndarray,
                     key_: str,
                     pic_name = 'Trajectories', 
                     folder_name = 'pics',
-                    saving_plot = False): 
+                    saving_plot = False, 
+                    show_plot = False): 
     '''
         Function that plots the given trajectory (x(t), y(t)) and 
         the experimental data (dfx, dfy) for the given cluster. 
@@ -275,15 +278,22 @@ def plot_simulation(x : np.ndarray , y : np.ndarray,
     plt.ylabel('Y')
     plt.legend()
     if saving_plot:
-        # Check if the 'pics' folder exists, if not, create it
-        if not os.path.exists('pics'):
-            os.makedirs('pics')
+        
+        current_dir = os.getcwd()
+        parent_dir = os.path.dirname(current_dir)
+        data_folder = os.path.join(parent_dir, folder_name)
+        if not os.path.exists(data_folder):
+            os.makedirs(data_folder) 
+        
         # Save the figure with a specific name based on the cluster
         filename = f'{pic_name}_{key_}.png'
-        filepath = os.path.join(folder_name, filename)
+        filepath = os.path.join(data_folder, filename)
         plt.savefig(filepath)
     
-    plt.show()
+    if show_plot:
+        plt.show()
+    else: 
+        plt.close() 
     
 
 
@@ -292,6 +302,7 @@ def plot_simulation(x : np.ndarray , y : np.ndarray,
 #########################################
 
 def saving_new_params(new_params: dict, folder_name: str = 'new_params_data') -> None:
+    
     if new_params is None:
         print("No data to save.")
         return

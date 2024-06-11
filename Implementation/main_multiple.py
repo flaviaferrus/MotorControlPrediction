@@ -12,6 +12,7 @@ from utils_data_multiple import load_multiple_data, plot_multiple_data, point_to
 from utils_data_multiple import saving_processed_mult_data, load_processed_mult_data, multiple_linear_transf
 from utils_model_multiple import fitParamaters_mult, load_params
 
+
 ##############################################
 ## GENERAL PROCESSING AND FITTING FUNCTIONS ##
 ##############################################

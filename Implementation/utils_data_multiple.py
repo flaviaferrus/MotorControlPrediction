@@ -123,6 +123,7 @@ def saving_processed_mult_data(cleaned_data_dict: dict = None, idxrule_dict: dic
     print("CSV and/or idxrule JSON files have been saved successfully.")
 
 def load_processed_mult_data(folder_name: str = 'cleaned_multiple_data') -> Tuple[dict, dict]:
+    
     print('Loading the cleaned data...')
     
     # Get the current directory
