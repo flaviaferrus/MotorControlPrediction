@@ -383,7 +383,8 @@ def fitParamaters_mult(scaled_data_dict: dict,
                   segments:  List[Tuple[Tuple[float, float], Tuple[float, float]]], 
                   first_subj: int = 25, last_subj: int = 37,
                   n_clusters = 4, 
-                  folder_name = 'fitted_trajectories', 
+                  folder_name = 'fitted_trajectories',
+                  data_folder_name = 'fitted_parameters', 
                   saving = False, 
                   saving_data = True) -> Tuple[list, list]:
     
@@ -445,8 +446,9 @@ def fitParamaters_mult(scaled_data_dict: dict,
                                         key_ = key_, pic_name = 'Trajectories_optSigma', 
                                         folder_name = folder_name,
                                         saving_plot = saving)
-                        
-    saving_new_params(new_params, folder_name= 'fitted_params')
-    saving_new_params(opt_sigma, folder_name= 'fitted_params_sigma')
+                      
+    sigma_folder = f'{data_folder_name}_sigma'
+    saving_new_params(new_params, folder_name= data_folder_name)
+    saving_new_params(opt_sigma, folder_name= sigma_folder)
                     
     return new_params, opt_sigma
