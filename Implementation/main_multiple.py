@@ -81,7 +81,7 @@ def main(processing = False, fitting = False, n_clusters = 4):
                   idxrule_dict, 
                   results_dict,
                   segments, 
-                  first_subj = 25, last_subj = 30,
+                  first_subj = 25, last_subj = 37,
                   n_clusters = 4, folder_name = 'fitted_trajectories_', 
                   saving = True, saving_data = True)   
     else: 
@@ -91,4 +91,4 @@ def main(processing = False, fitting = False, n_clusters = 4):
     print('Parameters fitteg correctly.')
 
 if __name__ == '__main__':
-    main(processing = False, fitting = False)
+    main(processing = False, fitting = True)
