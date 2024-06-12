@@ -89,7 +89,7 @@ def main(processing = False, fitting = False, n_clusters = 4):
         params_loaded = load_params(folder_name = 'fitted_params')
         opt_sigma = load_params(folder_name = 'fitted_params_sigma')
 
-    print('Parameters fitteg correctly.')
+    print('Parameters fitted correctly.')
 
 if __name__ == '__main__':
     main(processing = False, fitting = True)
