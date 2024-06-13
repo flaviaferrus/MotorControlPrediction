@@ -14,6 +14,7 @@ from typing import Tuple, List, Dict
 import json
 from scipy.optimize import OptimizeResult
 from scipy.optimize import minimize_scalar
+from scipy.stats import norm, shapiro
 
 
 #########################################
