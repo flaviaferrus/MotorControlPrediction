@@ -383,6 +383,128 @@ def load_params(folder_name: str = 'new_params_data') -> dict:
     return new_params
 
 
+
+#########################################
+##         PLOTTING PARAMETERS         ##
+#########################################
+
+def dict_to_array(params_dict: dict):
+    parameters = []
+    for key in params_dict:
+        for subkey in params_dict[key]:
+            result = params_dict[key][subkey]
+            if isinstance(result, dict) and 'x' in result:
+                parameters.append(result['x'])
+            else:
+                parameters.append(result.x)
+    return np.array(parameters)
+
+def plotting_params(parameters: np.ndarray, barWidth=0.5, 
+                    saving_plot = True, folder_name = 'fitted_pics', 
+                    pic_name = 'params', 
+                    style_label = 'seaborn-whitegrid'):
+    
+    # Choose the height of the bars
+    bars1 = np.nanmean(parameters, axis=0)
+ 
+    # Choose the height of the error bars (bars1)
+    yer1 = 2 * np.nanstd(parameters, axis=0)
+ 
+    # The x position of bars
+    r1 = np.arange(len(bars1))
+
+    # Configure matplotlib to use LaTeX for rendering
+    plt.rcParams['text.usetex'] = True
+    plt.rcParams['font.family'] = 'serif'
+
+    fig, ax = plt.subplots(nrows=1, ncols=1)  # create figure & 1 axis
+    plt.style.use(style_label)
+    bar_colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
+    
+    ax.bar(r1, bars1, width=barWidth, color=bar_colors, edgecolor='black', yerr=yer1, capsize=7)
+    
+    plt.xticks(r1, [r'$\gamma$', r'$\epsilon$', r'$\alpha$', r'$\sigma$'], fontsize=20)
+    plt.ylabel(r'Value', fontsize=14)
+    plt.title(r'Parameters Distribution', fontsize=16)
+    
+    if saving_plot:
+        
+        current_dir = os.getcwd()
+        parent_dir = os.path.dirname(current_dir)
+        data_folder = os.path.join(parent_dir, folder_name)
+        if not os.path.exists(data_folder):
+            os.makedirs(data_folder) 
+        
+        # Save the figure with a specific name based on the cluster
+        filename = f'{pic_name}.png'
+        filepath = os.path.join(data_folder, filename)
+        plt.savefig(filepath)
+    
+    plt.show()
+
+def plotting_dict_params(params_dict: dict, opt_sigma: dict, 
+                         barWidth=0.5, 
+                         saving_plot = True, folder_name = 'fitted_pics', 
+                         pic_name = 'params'): 
+    params_array = dict_to_array(params_dict)
+    sigma_array = dict_to_array(opt_sigma)
+    sigma_array = sigma_array.reshape(-1, 1)
+    combined_params = np.hstack((params_array, sigma_array))
+    combined_params[:, 2] *= -1 
+    combined_params[:, 3] *= 0.005 
+    
+    plotting_params(combined_params, 
+                    barWidth=0.5, 
+                    saving_plot = True, folder_name = 'fitted_pics', 
+                    pic_name = 'params')
+
+def plot_gaussian_distributions_theo(parameters: np.ndarray, style_label ='seaborn-whitegrid', 
+                                     saving_plot = True,    folder_name = 'fitted_pics', 
+                                     pic_name = 'params_gaussian', 
+                                     ):
+    fig, axs = plt.subplots(nrows=1, ncols=3, figsize=(18, 6))
+    bar_colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
+    plt.style.use(style_label)  
+    for i in range(3):
+        ax = axs[i]
+        param_values = parameters[:, i]
+        mean = np.mean(param_values)
+        std_dev = np.std(param_values)
+        
+        # Generate x values for the plot
+        x = np.linspace(mean - 4*std_dev, mean + 4*std_dev, 100)
+        # Calculate Gaussian pdf
+        y = norm.pdf(x, mean, std_dev)
+        
+        
+        # Plot the Gaussian distribution
+        ax.plot(x, y, color = 'black', label=f'Theoretical Gaussian: $\mu$={mean:.2f}, $\sigma$={std_dev:.2f}')
+        ax.hist(param_values, bins=20, color = bar_colors[i], density=True, alpha=0.7, label='Histogram')
+        
+        ax.set_title(f'Parameter {i+1}')
+        ax.set_xlabel('Value')
+        ax.set_ylabel('Density')
+        ax.legend()
+
+    plt.tight_layout()
+    
+    if saving_plot:
+        
+        current_dir = os.getcwd()
+        parent_dir = os.path.dirname(current_dir)
+        data_folder = os.path.join(parent_dir, folder_name)
+        if not os.path.exists(data_folder):
+            os.makedirs(data_folder) 
+        
+        # Save the figure with a specific name based on the cluster
+        filename = f'{pic_name}.png'
+        filepath = os.path.join(data_folder, filename)
+        plt.savefig(filepath)
+        
+    plt.show()
+
+
+
 #########################################
 ##          FITTING PARAMETERS         ##
 #########################################
