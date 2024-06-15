@@ -452,12 +452,12 @@ def plotting_dict_params(params_dict: dict, opt_sigma: dict,
     sigma_array = sigma_array.reshape(-1, 1)
     combined_params = np.hstack((params_array, sigma_array))
     combined_params[:, 2] *= -1 
-    combined_params[:, 3] *= 0.005 
+    #combined_params[:, 3] *= 0.005 
     
     plotting_params(combined_params, 
                     barWidth=0.5, 
-                    saving_plot = True, folder_name = 'fitted_pics', 
-                    pic_name = 'params')
+                    saving_plot = saving_plot, folder_name = folder_name, 
+                    pic_name = pic_name)
 
 def plot_gaussian_distributions_theo(parameters: np.ndarray, style_label ='seaborn-whitegrid', 
                                      saving_plot = True,    folder_name = 'fitted_pics', 
