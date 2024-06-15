@@ -506,6 +506,9 @@ def plot_gaussian_distributions_theo(parameters: np.ndarray, style_label ='seabo
     num_params = parameters.shape[1]  # Number of parameters (should be 4)
     titles = [r'$\gamma (s^{-1})$', r'$\varepsilon (m^{-1} kg^{-2} s^{4})$', r'$\alpha (kg^{-1})$', r'$\sigma$']
     titles_ = [r'$\gamma $', r'$\varepsilon$', r'$\alpha$', r'$\sigma$']
+    
+    t_tests = []
+    sw_tests = []
      
     plt.style.use(style_label)  
     
@@ -523,15 +526,15 @@ def plot_gaussian_distributions_theo(parameters: np.ndarray, style_label ='seabo
         y = norm.pdf(x, mean, std_dev)
         
         T_test = stats.ttest_ind(y, param_values, trim=.2)
+        t_tests.append(T_test)
         print(titles[i])
         print('T-test results: ', T_test)
         
         # Perform Shapiro-Wilk test for Gaussianity
         shapiro_test = shapiro(param_values)
+        sw_tests.append(shapiro_test)
         print(titles[i])
         print('Shapiro-Wilk test results:', shapiro_test)
-        
-        
         
         # Plot the Gaussian distribution
         ax.plot(x, y, color = 'black', label=f'Theoretical Gaussian: $\mu$={mean:.2f}, $std$={std_dev:.2f}')
@@ -561,6 +564,7 @@ def plot_gaussian_distributions_theo(parameters: np.ndarray, style_label ='seabo
         plt.savefig(filepath)
         
     plt.show()
+    return t_tests, sw_tests
 
 def plotting_dict_params(params_dict: dict, opt_sigma: dict,
                          style_label ='seaborn-v0_8-white', 
@@ -581,9 +585,11 @@ def plotting_dict_params(params_dict: dict, opt_sigma: dict,
                                      saving_plot = saving_plot, folder_name = folder_name, 
                                          pic_name = pic_name) 
     elif plotting_ == 1: 
-        plot_gaussian_distributions_theo(combined_params, style_label = style_label, 
+        t_tests, sw_tests = plot_gaussian_distributions_theo(combined_params, style_label = style_label, 
                                          saving_plot = saving_plot, folder_name = folder_name, 
                                          pic_name = pic_name)
+        return t_tests, sw_tests
+    
     else:    
         plotting_params(combined_params, 
                         style_label = style_label,
