@@ -5,6 +5,7 @@
 import numpy as np
 import math
 import matplotlib.pyplot as plt
+import seaborn as sns
 import pandas as pd
 import scipy
 from scipy.stats import ks_2samp 
@@ -14,6 +15,7 @@ from typing import Tuple, List, Dict
 import json
 from scipy.optimize import OptimizeResult
 from scipy.optimize import minimize_scalar
+from scipy import stats
 from scipy.stats import norm, shapiro
 
 
@@ -389,15 +391,25 @@ def load_params(folder_name: str = 'new_params_data') -> dict:
 ##         PLOTTING PARAMETERS         ##
 #########################################
 
-def dict_to_array(params_dict: dict):
+def dict_to_array(params_dict):
     parameters = []
-    for key in params_dict:
-        for subkey in params_dict[key]:
-            result = params_dict[key][subkey]
-            if isinstance(result, dict) and 'x' in result:
-                parameters.append(result['x'])
+    ## Recurrent function:   
+    def extract_parameters(sub_dict):
+        for key in sub_dict:
+            value = sub_dict[key]
+            if isinstance(value, dict):
+                if 'x' in value:
+                    parameters.append(value['x'])
+                else:
+                    extract_parameters(value)
             else:
-                parameters.append(result.x)
+                try:
+                    parameters.append(value.x)
+                except AttributeError:
+                    parameters.append(value)
+
+    extract_parameters(params_dict)
+    
     return np.array(parameters)
 
 def plotting_params(parameters: np.ndarray, barWidth=0.5, 
@@ -443,49 +455,32 @@ def plotting_params(parameters: np.ndarray, barWidth=0.5,
     
     plt.show()
 
-def plotting_dict_params(params_dict: dict, opt_sigma: dict, 
-                         barWidth=0.5, 
-                         saving_plot = True, folder_name = 'fitted_pics', 
-                         pic_name = 'params'): 
-    params_array = dict_to_array(params_dict)
-    sigma_array = dict_to_array(opt_sigma)
-    sigma_array = sigma_array.reshape(-1, 1)
-    combined_params = np.hstack((params_array, sigma_array))
-    combined_params[:, 2] *= -1 
-    #combined_params[:, 3] *= 0.005 
-    
-    plotting_params(combined_params, 
-                    barWidth=0.5, 
-                    saving_plot = saving_plot, folder_name = folder_name, 
-                    pic_name = pic_name)
-
-def plot_gaussian_distributions_theo(parameters: np.ndarray, style_label ='seaborn-whitegrid', 
-                                     saving_plot = True,    folder_name = 'fitted_pics', 
+def box_plot_params(parameters: np.ndarray, style_label ='seaborn-whitegrid', 
+                                     saving_plot = True, folder_name = 'fitted_pics', 
                                      pic_name = 'params_gaussian', 
                                      ):
-    fig, axs = plt.subplots(nrows=1, ncols=3, figsize=(18, 6))
-    bar_colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
+    num_params = parameters.shape[1]  # Number of parameters (should be 4)
+    titles = [r'$\gamma (s^{-1})$', r'$\varepsilon (m^{-1} kg^{-2} s^{4})$', r'$\alpha (kg^{-1})$', r'$\sigma$']
+    titles_ = [r'$\gamma $', r'$\varepsilon$', r'$\alpha$', r'$\sigma$']
+     
     plt.style.use(style_label)  
-    for i in range(3):
+    
+    fig, axs = plt.subplots(nrows=1, ncols=num_params, figsize=(18, 6))
+    bar_colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
+    
+    for i in range(num_params):
         ax = axs[i]
         param_values = parameters[:, i]
         mean = np.mean(param_values)
         std_dev = np.std(param_values)
         
-        # Generate x values for the plot
-        x = np.linspace(mean - 4*std_dev, mean + 4*std_dev, 100)
-        # Calculate Gaussian pdf
-        y = norm.pdf(x, mean, std_dev)
-        
-        
-        # Plot the Gaussian distribution
-        ax.plot(x, y, color = 'black', label=f'Theoretical Gaussian: $\mu$={mean:.2f}, $\sigma$={std_dev:.2f}')
-        ax.hist(param_values, bins=20, color = bar_colors[i], density=True, alpha=0.7, label='Histogram')
-        
-        ax.set_title(f'Parameter {i+1}')
-        ax.set_xlabel('Value')
+        sns.boxplot(y=param_values, ax=ax, color=bar_colors[i])
+        ax.set_title(titles[i])
+        ax.set_xlabel(titles_[i])
+         
+        #ax.set_xlabel('Value')
         ax.set_ylabel('Density')
-        ax.legend()
+        #ax.legend(loc = 2, fontsize = 10)
 
     plt.tight_layout()
     
@@ -504,7 +499,98 @@ def plot_gaussian_distributions_theo(parameters: np.ndarray, style_label ='seabo
         
     plt.show()
 
+def plot_gaussian_distributions_theo(parameters: np.ndarray, style_label ='seaborn-whitegrid', 
+                                     saving_plot = True,    folder_name = 'fitted_pics', 
+                                     pic_name = 'params_gaussian', 
+                                     ):
+    num_params = parameters.shape[1]  # Number of parameters (should be 4)
+    titles = [r'$\gamma (s^{-1})$', r'$\varepsilon (m^{-1} kg^{-2} s^{4})$', r'$\alpha (kg^{-1})$', r'$\sigma$']
+    titles_ = [r'$\gamma $', r'$\varepsilon$', r'$\alpha$', r'$\sigma$']
+     
+    plt.style.use(style_label)  
+    
+    fig, axs = plt.subplots(nrows=1, ncols=num_params, figsize=(18, 6))
+    bar_colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
+    for i in range(num_params):
+        ax = axs[i]
+        param_values = parameters[:, i]
+        mean = np.mean(param_values)
+        std_dev = np.std(param_values)
+        
+        # Generate x values for the plot
+        x = np.linspace(mean - 4*std_dev, mean + 4*std_dev, 100)
+        # Calculate Gaussian pdf
+        y = norm.pdf(x, mean, std_dev)
+        
+        T_test = stats.ttest_ind(y, param_values, trim=.2)
+        print(titles[i])
+        print('T-test results: ', T_test)
+        
+        # Perform Shapiro-Wilk test for Gaussianity
+        shapiro_test = shapiro(param_values)
+        print(titles[i])
+        print('Shapiro-Wilk test results:', shapiro_test)
+        
+        
+        
+        # Plot the Gaussian distribution
+        ax.plot(x, y, color = 'black', label=f'Theoretical Gaussian: $\mu$={mean:.2f}, $std$={std_dev:.2f}')
+        ax.hist(param_values, histtype='stepfilled', bins=20, color = bar_colors[i], density=True, alpha=0.7, label='Experimental distribution')
+        
+        #ax.set_title(f'Parameter {i+1}')
+        ax.set_title(titles[i])
+        ax.set_xlabel(titles_[i])
+         
+        #ax.set_xlabel('Value')
+        ax.set_ylabel('Density')
+        ax.legend(loc = 2, fontsize = 10)
 
+    plt.tight_layout()
+    
+    if saving_plot:
+        
+        current_dir = os.getcwd()
+        parent_dir = os.path.dirname(current_dir)
+        data_folder = os.path.join(parent_dir, folder_name)
+        if not os.path.exists(data_folder):
+            os.makedirs(data_folder) 
+        
+        # Save the figure with a specific name based on the cluster
+        filename = f'{pic_name}.png'
+        filepath = os.path.join(data_folder, filename)
+        plt.savefig(filepath)
+        
+    plt.show()
+
+def plotting_dict_params(params_dict: dict, opt_sigma: dict,
+                         style_label ='seaborn-v0_8-white', 
+                         barWidth=0.5, plotting_ = 0,
+                         saving_plot = True, folder_name = 'fitted_pics', 
+                         pic_name = 'params'): 
+    
+    params_array = dict_to_array(params_dict)
+    sigma_array = dict_to_array(opt_sigma)
+    
+    sigma_array = sigma_array.reshape(-1, 1)
+    combined_params = np.hstack((params_array, sigma_array))
+    combined_params[:, 2] *= -1 
+    #combined_params[:, 3] *= 0.005 
+   
+    if plotting_ == 0: 
+        box_plot_params(parameters = combined_params, style_label = style_label, 
+                                     saving_plot = saving_plot, folder_name = folder_name, 
+                                         pic_name = pic_name) 
+    elif plotting_ == 1: 
+        plot_gaussian_distributions_theo(combined_params, style_label = style_label, 
+                                         saving_plot = saving_plot, folder_name = folder_name, 
+                                         pic_name = pic_name)
+    else:    
+        plotting_params(combined_params, 
+                        style_label = style_label,
+                        barWidth=0.5, 
+                        saving_plot = saving_plot, folder_name = folder_name, 
+                        pic_name = pic_name)
+    
 
 #########################################
 ##          FITTING PARAMETERS         ##
