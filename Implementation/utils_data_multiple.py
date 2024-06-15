@@ -512,7 +512,6 @@ def multiple_linear_transf(cleaned_data_dict: dict, idxrule_dict: dict,
     return scaled_data_dict, velocity_dict, results_dict 
 
 
-
 #########################################
 ##          COMPUTING VELOCITY         ##
 #########################################
