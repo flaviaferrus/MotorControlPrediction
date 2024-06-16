@@ -373,6 +373,8 @@ def cleaning_clustering_multiple_data(data_dict: dict,
                         if idxrule[cluster]:
                             ax.plot(dfx.iloc[i, idxrule[cluster][i]], dfy.iloc[i, idxrule[cluster][i]], 'kx')
                 
+                ax.set_title(f'Motivation {motivation}, Mode {mode}')
+    
                 subplot_index += 1
         
         fig.tight_layout(rect=[0, 0, 1, 0.96])  
