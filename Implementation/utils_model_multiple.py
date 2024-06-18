@@ -263,8 +263,7 @@ def plot_trajectory(x, y, ax=None, showing=True, via=False, plot_title='Simulate
     ax.legend()
     if showing:
         plt.show()
-
-        
+       
 def plot_simulation(x : np.ndarray , y : np.ndarray,
                     dfx : pd.DataFrame, dfy : pd.DataFrame,
                     cluster : int, subject : int, 
@@ -358,7 +357,6 @@ def plot_multiple_trajectories(dfx: pd.DataFrame, dfy: pd.DataFrame,
         plt.show()
         
     return x_, y_
-
 
 def generated_multiple_trajectories_plot(scaled_data_dict: dict, params_loaded: dict, 
                             opt_sigma : dict, 
@@ -603,11 +601,11 @@ def box_plot_params(parameters: np.ndarray, style_label ='seaborn-whitegrid',
         std_dev = np.std(param_values)
         
         sns.boxplot(y=param_values, ax=ax, color=bar_colors[i])
-        ax.set_title(titles[i])
-        ax.set_xlabel(titles_[i])
+        ax.set_title(titles[i], fontsize=20)
+        ax.set_xlabel(titles_[i], fontsize=14)
          
         #ax.set_xlabel('Value')
-        ax.set_ylabel('Density')
+        ax.set_ylabel('Density', fontsize = 14)
         #ax.legend(loc = 2, fontsize = 10)
 
     plt.tight_layout()
@@ -669,11 +667,11 @@ def plot_gaussian_distributions_theo(parameters: np.ndarray, style_label ='seabo
         ax.hist(param_values, histtype='stepfilled', bins=20, color = bar_colors[i], density=True, alpha=0.7, label='Experimental distribution')
         
         #ax.set_title(f'Parameter {i+1}')
-        ax.set_title(titles[i])
-        ax.set_xlabel(titles_[i])
+        ax.set_title(titles[i], fontsize=20)
+        ax.set_xlabel(titles_[i], fontsize=14)
          
         #ax.set_xlabel('Value')
-        ax.set_ylabel('Density')
+        ax.set_ylabel('Density', fontsize=14)
         ax.legend(loc = 2, fontsize = 10)
 
     plt.tight_layout()

@@ -127,6 +127,7 @@ def ComputeFunctional(parameters, sigma = 0, gamma = 0.5, epsilon = 0.1, alpha =
     integral=(force[1:]+force[:-1]).sum()*T/(2*(len(ux)-1))
 
     J=(1-y[-1]**2)*math.e**(-T/gamma)-epsilon*integral
+    
     return -J
 
 def ComputeVel(parameters, vel = 0.1, T = 1.3, sigma = 0, gamma = 0.5, epsilon = 0.1, alpha = 0.5, timestep=1/500):
@@ -308,7 +309,7 @@ def generate_trajectory(params = ( 3.7, -0.15679707,  0.97252444,  0.54660283, -
                         )
     if plotting: 
         plot_trajectory(x,y, showing = True)
-    return x, y, T
+    return x, y, T, parameters
 
 def generate_trajectory_vel(params = (.5, .5, .5), 
                             parameters = ( 3.7, -0.15679707,  0.97252444,  0.54660283, -6.75775885, -0.06253371),
@@ -376,3 +377,58 @@ def optimize_Sigma(dfx : pd.DataFrame, dfy : pd.DataFrame, idxrule : np.ndarray,
         plot_trajectory(x, y, showing=True) 
         
     return x, y, opt_Sigma
+
+
+
+#########################################
+##          FITTING PARAMETERS         ##
+#########################################
+
+def fitParamaters(results : pd.DataFrame, 
+                  dfx : list, dfy : list, 
+                  n_clusters = 4, 
+                  plotting = True, saving = False) -> Tuple[list, list]:
+    
+    new_params = [[] for _ in range(n_clusters)]
+    opt_sigma = [[] for _ in range(n_clusters)]
+    
+    for cluster in range(n_clusters): 
+        
+        print('Computing trajectory with optimized velocity for cluser: ', cluster)
+        
+        ## Generate the optimal trajectory by optimizing the Functional in terms of the time T 
+        x, y, T = generate_trajectory(plotting = False)
+        if plotting:
+            plot_simulation(x, y, dfx[cluster], dfy[cluster], 
+                    cluster = cluster, pic_name = 'Trajectories_optFunctional', 
+                    saving_plot = saving)
+        
+        ## Generate the optimal trajectory with the time provided from optimizing the Functional 
+        # by optimizing the velocity in terms of the parameters (alpha, epsilon, gamma)
+        x_, y_, new_params[cluster] = generate_trajectory_vel(plotting = False, 
+                                 T = T,
+                                 vel = results[results['cluster'] == cluster].max_vel.values[0])
+        if plotting:
+            plot_simulation(x_, y_, dfx[cluster], dfy[cluster], 
+                    cluster = cluster, pic_name = 'Trajectories_optVel', 
+                    saving_plot = saving)
+        
+        ## Generate the optimal trajectory with the optimum stopping time and parameters
+        # by optimizing the Kolmogorov Sirnov estimate in terms of the sigma
+            # Converting idxrule to array from string
+        idxr = results[results['cluster'] == cluster].idxrule.values[0]
+        idxrule = np.fromstring(idxr[1: -1], dtype = int, sep = ', ')
+        
+        x__, y__, opt_sigma[cluster] = optimize_Sigma(dfx[cluster] , dfy[cluster],
+                                            idxrule = idxrule, 
+                                            new_params = new_params[cluster])
+        if plotting: 
+            plot_simulation(x__, y__, dfx[cluster], dfy[cluster], 
+                        cluster = cluster, pic_name = 'Trajectories_optSigma', 
+                        saving_plot = saving)
+        
+        print('Parameters estimated:')
+        print(new_params[cluster].x, opt_sigma[cluster].x)
+        
+    return new_params, opt_sigma
+            
