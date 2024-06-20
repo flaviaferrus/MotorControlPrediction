@@ -723,6 +723,23 @@ def plotting_dict_params(params_dict: dict, opt_sigma: dict,
                         saving_plot = saving_plot, folder_name = folder_name, 
                         pic_name = pic_name)
     
+def generate_latex_table(test_results,
+                         parameters = ["$\gamma (s^{-1})$", "$\varepsilon (m^3 kg^2 s^{-4})$", "$\alpha (kg^{-1})$", "$\sigma$"], 
+                         test_name = "Shapiro-Wilk"):
+    latex_table = "\\begin{table}[H]\n\\centering\n\\begin{tabular}{|c|" + "c|" * len(parameters) + "}\n\\hline\n"
+    
+    latex_table += "Subject & " + " & ".join(parameters) + " \\\\\n\\hline\n"
+    
+    # Add data rows
+    for subject, subject_results in enumerate(test_results, start=25):
+        pvalues = [f"{result.pvalue:.2e}" for result in subject_results]
+        latex_table += f"{subject} & " + " & ".join(pvalues) + " \\\\\n"
+        
+    latex_table += "\\hline\n\\end{tabular}\n\\caption{P-values for " + test_name + " test for each parameter for each subject}\n\\label{tab:pvalues_" + test_name.lower().replace(' ', '_') + "}\n\\end{table}"
+    
+    return latex_table
+
+
 
 #########################################
 ##          FITTING PARAMETERS         ##
