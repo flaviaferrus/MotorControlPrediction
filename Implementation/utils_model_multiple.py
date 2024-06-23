@@ -635,7 +635,10 @@ def plot_gaussian_distributions_theo(parameters: np.ndarray, style_label ='seabo
     
     t_tests = []
     sw_tests = []
-     
+    
+    means = []
+    devs = [] 
+    
     plt.style.use(style_label)  
     
     fig, axs = plt.subplots(nrows=1, ncols=num_params, figsize=(18, 6))
@@ -645,6 +648,8 @@ def plot_gaussian_distributions_theo(parameters: np.ndarray, style_label ='seabo
         param_values = parameters[:, i]
         mean = np.mean(param_values)
         std_dev = np.std(param_values)
+        means.append(mean)
+        devs.append(std_dev)
         
         # Generate x values for the plot
         x = np.linspace(mean - 4*std_dev, mean + 4*std_dev, 100)
@@ -690,7 +695,7 @@ def plot_gaussian_distributions_theo(parameters: np.ndarray, style_label ='seabo
         plt.savefig(filepath)
         
     plt.show()
-    return t_tests, sw_tests
+    return t_tests, sw_tests, means, devs
 
 def plotting_dict_params(params_dict: dict, opt_sigma: dict,
                          style_label ='seaborn-v0_8-white', 
@@ -711,10 +716,11 @@ def plotting_dict_params(params_dict: dict, opt_sigma: dict,
                                      saving_plot = saving_plot, folder_name = folder_name, 
                                          pic_name = pic_name) 
     elif plotting_ == 1: 
-        t_tests, sw_tests = plot_gaussian_distributions_theo(combined_params, style_label = style_label, 
+        t_tests, sw_tests, means, devs = plot_gaussian_distributions_theo(combined_params, style_label = style_label, 
                                          saving_plot = saving_plot, folder_name = folder_name, 
                                          pic_name = pic_name)
-        return t_tests, sw_tests
+        
+        return t_tests, sw_tests, means, devs
     
     else:    
         plotting_params(combined_params, 
