@@ -591,7 +591,7 @@ def plot_data(dfx : pd.DataFrame, dfy : pd.DataFrame,
         rectx,recty=np.array([0,0,0,0]), np.array([0,0,0,0])
      
     ax.set_title('Trajectories in Cluster {}'.format(cluster))
-    ax.grid(True)
+    #ax.grid(True)
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     if saving_plot:
@@ -611,11 +611,13 @@ def plot_data(dfx : pd.DataFrame, dfy : pd.DataFrame,
 def plot_multiple_data(data_dict : list, 
                        first_subj = 25, last_subj = 37, 
                        save_dir = 'subject_plots', 
-                       saving = True):
+                       saving = True, style_label ='seaborn-v0_8-white'):
     
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
+    plt.style.use(style_label)  
+    
     # Loop over subjects
     for subject in range(first_subj, last_subj): 
         fig, axes = plt.subplots(3, 2, figsize=(15, 10))  # 3 rows, 2 columns of subplots
