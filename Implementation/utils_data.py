@@ -230,7 +230,8 @@ def cleaning_data(dfx : pd.DataFrame, dfy : pd.DataFrame,
     return dfx, dfy, idxrule
 
 def linear_transf(dfx : pd.DataFrame, dfy : pd.DataFrame, 
-                  rectx : np.ndarray, recty : np.ndarray) -> Tuple[pd.DataFrame, pd.DataFrame]:
+                  rectx : np.ndarray, recty : np.ndarray, 
+                  inverse = False) -> Tuple[pd.DataFrame, pd.DataFrame]:
     
     model_target = np.array((1,0))
     if rectx[0] > 0 and recty[-1] > 0:
@@ -261,6 +262,10 @@ def linear_transf(dfx : pd.DataFrame, dfy : pd.DataFrame,
     M=np.dot(model_M,np.linalg.inv(screen_M))
     A=M[:2,:2]
     b=M[:2,-1:].flatten()
+    
+    if inverse: 
+        # Compute the inverse of the affine transformation
+        A= np.linalg.inv(A)
     
     dfx_=A[0,0]*dfx+A[0,1]*dfy+b[0]
     dfy_=A[1,0]*dfx+A[1,1]*dfy+b[1]
@@ -382,6 +387,9 @@ def processing_data(n_clusters = 4, path = 'dataTrajectories-25.mat') -> Tuple[p
                       plotting_target= True, saving_plot= False, 
                       pt = pt, pic_name= 'Truncated')
         
+        saving_processed_data(truncated_dfx[cluster], folder_name = 'processed_data', file_name = 'cleaned_cluster{}_dfx'.format(cluster))
+        saving_processed_data(truncated_dfy[cluster], folder_name = 'processed_data', file_name = 'cleaned_cluster{}_dfy'.format(cluster))
+     
         # Linear transformation
         rotated_dfx[cluster] , rotated_dfy[cluster] = linear_transf(truncated_dfx[cluster] , truncated_dfy[cluster], 
                                                         rectx, recty)

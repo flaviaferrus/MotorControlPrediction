@@ -247,7 +247,7 @@ def plot_multiple_trajectories(dfx : pd.DataFrame, dfy : pd.DataFrame,
                         i_max = 1000, dt = timestep,
                         Autoregr = False, 
                         Arc = True, angle=math.pi*7/24, angle0=0, p=(.2,0), r=.1)
-    plot_trajectory(x_,y_, showing = False, plot_title= 'Trajectory with no noise')
+    plot_trajectory(x_,y_, showing = False) #, plot_title= 'Trajectory with no noise')
     
     plt.title('Trajectories in Cluster {}'.format(cluster))
     plt.grid(True)
