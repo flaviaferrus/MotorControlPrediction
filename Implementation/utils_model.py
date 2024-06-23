@@ -311,9 +311,11 @@ def plot_multiple_trajectories_combined(dfx: pd.DataFrame, dfy: pd.DataFrame,
                                         n=50, timestep=1/500,
                                         pic_name='Trajectories_combined', pic_folder='project_plots',
                                         saving_plot=False,
-                                        inverse=False):
+                                        inverse=False, 
+                                        ax = None):
 
-    fig, ax = plt.subplots(figsize=(10, 8))
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(10, 8))
     ax.set_title(f'Subject {subject} Simulated Trajectories', fontsize=16)
     colors = ['r', 'g', 'b', 'c']
 
