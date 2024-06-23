@@ -229,26 +229,48 @@ def cleaning_data(dfx : pd.DataFrame, dfy : pd.DataFrame,
     
     return dfx, dfy, idxrule
 
+
 def linear_transf(dfx : pd.DataFrame, dfy : pd.DataFrame, 
                   rectx : np.ndarray, recty : np.ndarray, 
                   inverse = False) -> Tuple[pd.DataFrame, pd.DataFrame]:
     
-    model_target = np.array((1,0))
-    if rectx[0] > 0 and recty[-1] > 0:
-        screen_target = np.array(((rectx[3]+rectx[0])/2,(recty[3]+recty[0])/2))
-    elif rectx[0] < 0 and recty[-1] > 0: 
-        dfx = -1 * dfx
-        screen_target = np.array(((-rectx[3]-rectx[0])/2,(recty[3]+recty[0])/2))
-    elif rectx[0] > 0 and recty[-1] < 0:
-        dfy = -1 * dfy
-        screen_target = np.array(((rectx[3]+rectx[0])/2,(-recty[3]-recty[0])/2)) 
-    else: 
-        dfx = -1 * dfx
-        dfy = -1 * dfy
-        screen_target = np.array(((-rectx[3]-rectx[0])/2,(-recty[3]-recty[0])/2))
+    if inverse:
+        model_target = np.array((np.cos(-math.pi*7/24),np.sin(-math.pi*7/24)))  
+        model_origin = np.array((1,0))
         
-    model_origin = np.array((np.cos(-math.pi*7/24),np.sin(-math.pi*7/24))) 
-    screen_origin = np.array((0,0))
+        if rectx[0] > 0 and recty[-1] > 0:
+            screen_origin = np.array(((rectx[3]+rectx[0])/2,(recty[3]+recty[0])/2))
+        elif rectx[0] < 0 and recty[-1] > 0: 
+            #dfx = -1 * dfx
+            screen_origin = np.array(((-rectx[3]-rectx[0])/2,(recty[3]+recty[0])/2))
+        elif rectx[0] > 0 and recty[-1] < 0:
+            #dfy = -1 * dfy
+            screen_origin = np.array(((rectx[3]+rectx[0])/2,(-recty[3]-recty[0])/2)) 
+        else: 
+            #dfx = -1 * dfx
+            #dfy = -1 * dfy
+            screen_origin = np.array(((-rectx[3]-rectx[0])/2,(-recty[3]-recty[0])/2))   
+        
+        screen_target = np.array((0,0)) 
+        
+    else: 
+        model_target = np.array((1,0))
+        model_origin = np.array((np.cos(-math.pi*7/24),np.sin(-math.pi*7/24))) 
+               
+        if rectx[0] > 0 and recty[-1] > 0:
+            screen_target = np.array(((rectx[3]+rectx[0])/2,(recty[3]+recty[0])/2))
+        elif rectx[0] < 0 and recty[-1] > 0: 
+            dfx = -1 * dfx
+            screen_target = np.array(((-rectx[3]-rectx[0])/2,(recty[3]+recty[0])/2))
+        elif rectx[0] > 0 and recty[-1] < 0:
+            dfy = -1 * dfy
+            screen_target = np.array(((rectx[3]+rectx[0])/2,(-recty[3]-recty[0])/2)) 
+        else: 
+            dfx = -1 * dfx
+            dfy = -1 * dfy
+            screen_target = np.array(((-rectx[3]-rectx[0])/2,(-recty[3]-recty[0])/2))   
+    
+        screen_origin = np.array((0,0))
 
     v_model=model_target-model_origin
     v_model_ort=np.array((v_model[1],-v_model[0]))
@@ -266,11 +288,27 @@ def linear_transf(dfx : pd.DataFrame, dfy : pd.DataFrame,
     if inverse: 
         # Compute the inverse of the affine transformation
         A= np.linalg.inv(A)
+        b = -np.dot(A, b)
     
     dfx_=A[0,0]*dfx+A[0,1]*dfy+b[0]
     dfy_=A[1,0]*dfx+A[1,1]*dfy+b[1]
     
-    return dfx_, dfy_
+    if inverse: 
+        if rectx[0] > 0 and recty[-1] > 0:
+            return dfx_, dfy_
+        elif rectx[0] < 0 and recty[-1] > 0: 
+            dfx_ = -1 * dfx_
+            return dfx_, dfy_
+        elif rectx[0] > 0 and recty[-1] < 0:
+            dfy_ = -1 * dfy_
+            return dfx_, dfy_
+        else: 
+            dfx_ = -1 * dfx_
+            dfy_ = -1 * dfy_
+            return dfx_, dfy_
+    
+    else: 
+        return dfx_, dfy_
 
 def experimental_velocity(dfx : pd.DataFrame, dfy : pd.DataFrame) -> pd.DataFrame:
     # Computing velocity of each point along the trajectories

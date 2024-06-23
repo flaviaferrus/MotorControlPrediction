@@ -12,6 +12,8 @@ import os
 from typing import Tuple
 import warnings
 
+from utils_data import linear_transf
+
 
 
 #########################################
@@ -109,6 +111,7 @@ def arc_length(x, y):
     return arc
 
 
+
 #########################################
 ##        FUNCTIONS TO OPTIMIZE        ##
 #########################################
@@ -170,20 +173,25 @@ def computeSamples(parameters, new_params : np.ndarray = (0,0,0),
     return ks_2samp(xT_samples, xT2_samples)[0]
 
 
+
 #########################################
 ##        PLOTTING FUNCTIONS           ##
 #########################################
 
 
-def plot_trajectory(x, y, showing = True, via = True, plot_title = 'Simulated Trajectory'):
+def plot_trajectory(x, y, showing = True, via = False, plot_title = 'Simulated Trajectory',  ax=None):
     '''
         Function that plots the given trajectory (x(t), y(t)). 
     ''' 
-    plt.plot(x,y,color='blue', label=plot_title, alpha = 1)
+    if ax is None:
+        ax = plt.gca()
+    ax.plot(x,y,color='blue', label=plot_title, alpha = 1)
+    
     if via:
         angle=math.pi*7/24
         T_1=.2
-        plt.plot(np.cos(angle*(T_1-1)),np.sin(angle*(T_1-1)),marker='o',markersize=35)
+        ax.plot(np.cos(angle*(T_1-1)),np.sin(angle*(T_1-1)),marker='o',markersize=35)
+        
     if showing: 
         plt.show()
 
@@ -215,55 +223,151 @@ def plot_simulation(x : np.ndarray , y : np.ndarray,
     
     plt.show()
     
-def plot_multiple_trajectories(dfx : pd.DataFrame, dfy : pd.DataFrame,
-                               cluster : int, new_params : np.ndarray, opt_Sigma : np.float64,  
+def plot_multiple_trajectories_(dfx : pd.DataFrame, dfy : pd.DataFrame,
+                               n_clusters : int, new_params : np.ndarray, opt_Sigma : np.float64, 
+                               results : pd.DataFrame, 
                                parameters2 = ( 3.7, -0.15679707,  0.97252444,  0.54660283, -6.75775885, -0.06253371),
+                               ax=None, subject = 25,
                                n = 50, timestep = 1/500, 
-                               pic_name = 'Trajectories', 
-                               saving_plot = False): 
+                               pic_name = 'Trajectories', pic_folder = 'project_plots',
+                               saving_plot = False,
+                               inverse = False): 
     
+    if ax is None:
+        fig, axes = plt.subplots(2, 2, figsize=(15, 10))
     
-    fig, ax = plt.subplots( nrows=1, ncols=1 )  # create figure & 1 axis
-    ## Plotting experimental data
-    for i in range(len(dfx)):
-        plt.plot(dfx.iloc[i], dfy.iloc[i], color='gray', alpha=0.5)
+    fig.suptitle(f'Subject {subject} Simulated Trajectories', fontsize=16)
+    subplot_index = 0
+    colors = ['r', 'g', 'b', 'c']
+       
+     
+    for cluster in range(n_clusters):
         
-    ## Plotting numerical simulation
-    gamma, epsilon, alpha = new_params.x
-    sigma = opt_Sigma.x
-    
-    for i in range(n):
-        x, y, v, w, ux, uy, T= numericalSimulation(x_0 = (0,0,0,0),  p_T = 1.0, 
-                        sigma = sigma, gamma = gamma, epsilon = epsilon, alpha = alpha,
-                        u_0 = parameters2[:2], l_0 = parameters2[2:], 
-                        i_max = 1000, dt = timestep,
-                        Autoregr = False, 
-                        Arc = True, angle=math.pi*7/24, angle0=0, p=(.2,0), r=.1)
-        plt.plot(x, y) 
-    
-    x_, y_, v_, w_, ux_, uy_, T_= numericalSimulation(x_0 = (0,0,0,0),  p_T = 1.0, 
-                        sigma = sigma, gamma = gamma, epsilon = epsilon, alpha = alpha,
-                        u_0 = parameters2[:2], l_0 = parameters2[2:], 
-                        i_max = 1000, dt = timestep,
-                        Autoregr = False, 
-                        Arc = True, angle=math.pi*7/24, angle0=0, p=(.2,0), r=.1)
-    plot_trajectory(x_,y_, showing = False) #, plot_title= 'Trajectory with no noise')
-    
-    plt.title('Trajectories in Cluster {}'.format(cluster))
-    plt.grid(True)
-    plt.xlabel('X')
-    plt.ylabel('Y')
-    plt.legend()
+        rectx_list = results.rectx[cluster].replace(']', ' ')
+        rectx_list = rectx_list.replace('[', ' ')
+        rectx_list = rectx_list.split()
+        rectx = np.array(rectx_list , dtype= float)
+
+        recty_list = results.recty[cluster].replace(']', ' ')
+        recty_list = recty_list.replace('[', ' ')
+        recty_list = recty_list.split()
+        recty = np.array(recty_list , dtype= float)
+        
+        ax = axes[subplot_index // 2, subplot_index % 2]
+        #fig, ax = plt.subplots( nrows=1, ncols=1 )  # create figure & 1 axis
+        ## Plotting experimental data
+        for i in range(len(dfx[cluster])):
+            if inverse:
+                dfx_, dfy_ = linear_transf(dfx[cluster], dfy[cluster], rectx, recty, inverse = True)
+                ax.plot(dfx_.iloc[i], dfy_.iloc[i], color='gray', alpha=0.5, label='Experimental Trajectories' if i == 0 else "")
+            else:
+                ax.plot(dfx[cluster].iloc[i], dfy[cluster].iloc[i], color='gray', alpha=0.5, label='Experimental Trajectories' if i == 0 else "")
+            
+        ## Plotting numerical simulation
+        gamma, epsilon, alpha = new_params[cluster]
+        sigma = opt_Sigma[cluster]
+        
+        for i in range(n):
+            x, y, v, w, ux, uy, T= numericalSimulation(x_0 = (0,0,0,0),  p_T = 1.0, 
+                            sigma = sigma, gamma = gamma, epsilon = epsilon, alpha = alpha,
+                            u_0 = parameters2[:2], l_0 = parameters2[2:], 
+                            i_max = 1000, dt = timestep,
+                            Autoregr = False, 
+                            Arc = True, angle=math.pi*7/24, angle0=0, p=(.2,0), r=.1)
+            
+            if inverse: 
+                x_, y_ = linear_transf(x, y, rectx, recty, inverse = True)
+                ax.plot(x_, y_, color = colors[cluster], label='Simulated Trajectories' if i == 0 else "") 
+            else:
+                ax.plot(x, y, color = colors[cluster], label='Simulated Trajectories' if i == 0 else "") 
+     
+        
+        ax.set_title(f'Trajectories in Cluster {cluster}')
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+
+        ax.legend()
+        
+        subplot_index += 1
+                
+    fig.tight_layout(rect=[0, 0, 1, 0.96])  
+        
     if saving_plot:
         # Check if the 'pics' folder exists, if not, create it
-        if not os.path.exists('pics'):
-            os.makedirs('pics')
+        if not os.path.exists(pic_folder):
+            os.makedirs(pic_folder)
         # Save the figure with a specific name based on the cluster
-        filename = f'{pic_name}{cluster}.png'
-        filepath = os.path.join('pics', filename)
+        filename = f'{pic_name}.png'
+        filepath = os.path.join(pic_folder, filename)
         plt.savefig(filepath)
     
     plt.show() 
+    
+def plot_multiple_trajectories_combined(dfx: pd.DataFrame, dfy: pd.DataFrame,
+                                        n_clusters: int, new_params: np.ndarray, opt_Sigma: np.float64,
+                                        results: pd.DataFrame,
+                                        parameters2=(3.7, -0.15679707, 0.97252444, 0.54660283, -6.75775885, -0.06253371),
+                                        subject=25,
+                                        n=50, timestep=1/500,
+                                        pic_name='Trajectories_combined', pic_folder='project_plots',
+                                        saving_plot=False,
+                                        inverse=False):
+
+    fig, ax = plt.subplots(figsize=(10, 8))
+    ax.set_title(f'Subject {subject} Simulated Trajectories', fontsize=16)
+    colors = ['r', 'g', 'b', 'c']
+
+    for cluster in range(n_clusters):
+
+        rectx_list = results.rectx[cluster].replace(']', ' ')
+        rectx_list = rectx_list.replace('[', ' ')
+        rectx_list = rectx_list.split()
+        rectx = np.array(rectx_list, dtype=float)
+
+        recty_list = results.recty[cluster].replace(']', ' ')
+        recty_list = recty_list.replace('[', ' ')
+        recty_list = recty_list.split()
+        recty = np.array(recty_list, dtype=float)
+
+        # Plotting experimental data
+        for i in range(len(dfx[cluster])):
+            if inverse:
+                dfx_, dfy_ = linear_transf(dfx[cluster], dfy[cluster], rectx, recty, inverse=True)
+                ax.plot(dfx_.iloc[i], dfy_.iloc[i], color='gray', alpha=0.5, label='Experimental Trajectories' if i == 0 and cluster == 0 else "")
+            else:
+                ax.plot(dfx[cluster].iloc[i], dfy[cluster].iloc[i], color='gray', alpha=0.5, label='Experimental Trajectories' if i == 0 else "")
+
+        # Plotting numerical simulation
+        gamma, epsilon, alpha = new_params[cluster]
+        sigma = opt_Sigma[cluster]
+
+        for i in range(n):
+            x, y, v, w, ux, uy, T = numericalSimulation(x_0=(0, 0, 0, 0), p_T=1.0,
+                                                        sigma=sigma, gamma=gamma, epsilon=epsilon, alpha=alpha,
+                                                        u_0=parameters2[:2], l_0=parameters2[2:],
+                                                        i_max=1000, dt=timestep,
+                                                        Autoregr=False,
+                                                        Arc=True, angle=math.pi*7/24, angle0=0, p=(.2, 0), r=.1)
+
+            if inverse:
+                x_, y_ = linear_transf(x, y, rectx, recty, inverse=True)
+                ax.plot(x_, y_, color=colors[cluster], label=f'Simulated Trajectories Cluster {cluster}' if i == 0 else "")
+            else:
+                ax.plot(x, y, color=colors[cluster], label=f'Simulated Trajectories Cluster {cluster}' if i == 0 else "")
+
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.legend()
+    fig.tight_layout()
+
+    if saving_plot:
+        if not os.path.exists(pic_folder):
+            os.makedirs(pic_folder)
+        filename = f'{pic_name}.png'
+        filepath = os.path.join(pic_folder, filename)
+        plt.savefig(filepath)
+
+    plt.show()
     
 def plotting_params(parameters : np.ndarray,
                     barWidth = 0.5):
@@ -285,6 +389,7 @@ def plotting_params(parameters : np.ndarray,
     plt.xticks(r1, ['gamma', 'epsilon', 'alpha', 'sigma'])
     plt.ylabel('height')    
 
+    
     
 #########################################
 ##        PARAMATER ESTIMATION         ##
