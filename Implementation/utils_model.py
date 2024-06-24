@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import scipy
 from scipy.stats import ks_2samp 
+from sklearn.metrics import mean_squared_error, mean_absolute_error
+#from dtaidistance import dtw
 import os
 from typing import Tuple
 import warnings
@@ -304,20 +306,21 @@ def plot_multiple_trajectories(dfx : pd.DataFrame, dfy : pd.DataFrame,
     plt.show() 
     
 def plot_multiple_trajectories_combined(dfx: pd.DataFrame, dfy: pd.DataFrame,
-                                        n_clusters: int, new_params: np.ndarray, opt_Sigma: np.float64,
-                                        results: pd.DataFrame,
-                                        parameters2=(3.7, -0.15679707, 0.97252444, 0.54660283, -6.75775885, -0.06253371),
-                                        subject=25,
-                                        n=50, timestep=1/500,
-                                        pic_name='Trajectories_combined', pic_folder='project_plots',
-                                        saving_plot=False,
-                                        inverse=False, 
-                                        ax = None):
+                                         n_clusters: int, new_params: np.ndarray, opt_Sigma: np.float64,
+                                         results: pd.DataFrame,
+                                         parameters2=(3.7, -0.15679707, 0.97252444, 0.54660283, -6.75775885, -0.06253371),
+                                         subject=25,
+                                         n=50, timestep=1/500,
+                                         pic_name='Trajectories_combined', pic_folder='project_plots',
+                                         saving_plot=False,
+                                         inverse=False, 
+                                         metrics=True):
 
-    if ax is None:
-        fig, ax = plt.subplots(figsize=(10, 8))
+    fig, ax = plt.subplots(figsize=(10, 8))
     ax.set_title(f'Subject {subject} Simulated Trajectories', fontsize=16)
     colors = ['r', 'g', 'b', 'c']
+    
+    metrics_results = {}
 
     for cluster in range(n_clusters):
 
@@ -332,16 +335,20 @@ def plot_multiple_trajectories_combined(dfx: pd.DataFrame, dfy: pd.DataFrame,
         recty = np.array(recty_list, dtype=float)
 
         # Plotting experimental data
-        for i in range(len(dfx[cluster])):
-            if inverse:
-                dfx_, dfy_ = linear_transf(dfx[cluster], dfy[cluster], rectx, recty, inverse=True)
+        if inverse:
+            dfx_, dfy_ = linear_transf(dfx[cluster], dfy[cluster], rectx, recty, inverse=True)
+            for i in range(len(dfx[cluster])):
                 ax.plot(dfx_.iloc[i], dfy_.iloc[i], color='gray', alpha=0.5, label='Experimental Trajectories' if i == 0 and cluster == 0 else "")
-            else:
+        else:
+            for i in range(len(dfx[cluster])):
                 ax.plot(dfx[cluster].iloc[i], dfy[cluster].iloc[i], color='gray', alpha=0.5, label='Experimental Trajectories' if i == 0 else "")
 
         # Plotting numerical simulation
         gamma, epsilon, alpha = new_params[cluster]
         sigma = opt_Sigma[cluster]
+
+        simulated_x = []
+        simulated_y = []
 
         for i in range(n):
             x, y, v, w, ux, uy, T = numericalSimulation(x_0=(0, 0, 0, 0), p_T=1.0,
@@ -353,10 +360,34 @@ def plot_multiple_trajectories_combined(dfx: pd.DataFrame, dfy: pd.DataFrame,
 
             if inverse:
                 x_, y_ = linear_transf(x, y, rectx, recty, inverse=True)
+                simulated_x.append(x_)
+                simulated_y.append(y_)
                 ax.plot(x_, y_, color=colors[cluster], label=f'Simulated Trajectories Cluster {cluster}' if i == 0 else "")
             else:
+                simulated_x.append(x)
+                simulated_y.append(y)
                 ax.plot(x, y, color=colors[cluster], label=f'Simulated Trajectories Cluster {cluster}' if i == 0 else "")
+        
+        if metrics:
+            if cluster not in metrics_results:
+                metrics_results[cluster] = {}
+            # Padding trajectories to the same length
+            simulated_x = pad_trajectories(simulated_x)
+            simulated_y = pad_trajectories(simulated_y)
 
+            dfx_padded = pad_or_truncate_trajectories(dfx[cluster].values, simulated_x.shape[1])
+            dfy_padded = pad_or_truncate_trajectories(dfy[cluster].values, simulated_y.shape[1])
+
+            metrics = ['MSE', 'RMSE', 'MAE']
+            metrics_res = []
+            for metric in metrics:
+                mse_avg_x, mse_avg_y = compute_mse_between_averages(dfx_padded, dfy_padded, simulated_x, simulated_y, error = metric)
+            
+                #metrics_res.append({metric : (mse_avg_x, mse_avg_y)})
+                metrics_res.append((mse_avg_x, mse_avg_y))
+            
+            metrics_results[cluster] = metrics_res
+            
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.legend()
@@ -370,6 +401,10 @@ def plot_multiple_trajectories_combined(dfx: pd.DataFrame, dfy: pd.DataFrame,
         plt.savefig(filepath)
 
     plt.show()
+
+    if metrics:
+        return pd.DataFrame(metrics_results)
+
     
 def plotting_params(parameters : np.ndarray,
                     barWidth = 0.5):
@@ -490,6 +525,61 @@ def optimize_Sigma(dfx : pd.DataFrame, dfy : pd.DataFrame, idxrule : np.ndarray,
         
     return x, y, opt_Sigma
 
+
+
+#########################################
+##        METRICS COMPUTATION          ##
+#########################################
+
+def pad_trajectories(trajectories):
+    max_length = max(len(t) for t in trajectories)
+    padded_trajectories = np.array([np.pad(t, (0, max_length - len(t)), 'constant', constant_values=np.nan) for t in trajectories])
+    return padded_trajectories
+
+def pad_or_truncate_trajectories(trajectories, target_length):
+    return np.array([np.pad(t, (0, max(0, target_length - len(t))), 'constant', constant_values=np.nan)[:target_length] for t in trajectories])
+
+def compute_mse_between_averages(dfx: pd.DataFrame, dfy: pd.DataFrame, x_sim: np.ndarray, y_sim: np.ndarray, 
+                                 error = 'MSE'):
+    avg_x_exp = dfx.mean(axis=0)
+    avg_y_exp = dfy.mean(axis=0)
+    
+    avg_x_sim = np.nanmean(x_sim, axis=0)
+    avg_y_sim = np.nanmean(y_sim, axis=0)
+
+    # Truncate or pad the experimental averages to match the simulated length
+    if len(avg_x_exp) > len(avg_x_sim):
+        avg_x_exp = avg_x_exp[:len(avg_x_sim)]
+        avg_y_exp = avg_y_exp[:len(avg_y_sim)]
+    else:
+        avg_x_exp = np.pad(avg_x_exp, (0, len(avg_x_sim) - len(avg_x_exp)), 'constant', constant_values=np.nan)
+        avg_y_exp = np.pad(avg_y_exp, (0, len(avg_y_sim) - len(avg_y_exp)), 'constant', constant_values=np.nan)
+    
+    if error == 'MSE':
+        mse_x = mean_squared_error(avg_x_exp, avg_x_sim)
+        mse_y = mean_squared_error(avg_y_exp, avg_y_sim)
+    elif error == 'RMSE': 
+        mse_x = np.sqrt(mean_squared_error(avg_x_exp, avg_x_sim))
+        mse_y = np.sqrt(mean_squared_error(avg_y_exp, avg_y_sim))
+    else:
+        mse_x = mean_absolute_error(avg_x_exp, avg_x_sim)
+        mse_y = mean_absolute_error(avg_y_exp, avg_y_sim) 
+        
+    return mse_x, mse_y
+
+def compute_means_single_df(df):
+    means_list = []
+    for j in range(df.shape[1]):
+        x_mean = 0
+        y_mean = 0
+        for i in range(df.shape[0]): 
+            x_mean += df[i][j][0]
+            y_mean += df[i][j][1]
+        x_mean = x_mean / 4
+        y_mean = y_mean / 4
+        means_list.append((x_mean, y_mean))
+        
+    return means_list
 
 
 #########################################
