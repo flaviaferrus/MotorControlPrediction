@@ -223,7 +223,7 @@ def plot_simulation(x : np.ndarray , y : np.ndarray,
     
     plt.show()
     
-def plot_multiple_trajectories_(dfx : pd.DataFrame, dfy : pd.DataFrame,
+def plot_multiple_trajectories(dfx : pd.DataFrame, dfy : pd.DataFrame,
                                n_clusters : int, new_params : np.ndarray, opt_Sigma : np.float64, 
                                results : pd.DataFrame, 
                                parameters2 = ( 3.7, -0.15679707,  0.97252444,  0.54660283, -6.75775885, -0.06253371),

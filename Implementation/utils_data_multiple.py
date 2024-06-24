@@ -393,33 +393,58 @@ def cleaning_clustering_multiple_data(data_dict: dict,
 #########################################
 
 def linear_transf(dfx : pd.DataFrame, dfy : pd.DataFrame, 
-                  rectx : np.ndarray, recty : np.ndarray) -> Tuple[pd.DataFrame, pd.DataFrame]:
+                  rectx : np.ndarray, recty : np.ndarray, 
+                  inverse = False) -> Tuple[pd.DataFrame, pd.DataFrame]:
     
-    if rectx[0] > 0 and recty[-1] > 0:
-        model_target = np.array((0.5,1))
-        screen_target = np.array(((rectx[1]+rectx[0])/2,(recty[1]+recty[0])/2))
-        model_origin = np.array((np.cos(-math.pi*12/24),np.sin(-math.pi*12/24))) 
+    
+    if inverse:
+        
+        if rectx[0] > 0 and recty[-1] > 0:
+            model_origin = np.array((0.5,0.2))
+            screen_origin = np.array(((rectx[1]+rectx[0])/2,(recty[1]+recty[0])/2))
+            model_target = np.array((np.cos(-math.pi*12/24),np.sin(-math.pi*12/24))) 
 
-    elif rectx[0] < 0 and recty[-1] > 0: 
-        model_target = np.array((1.5,0))
-        dfx = -1 * dfx
-        screen_target = np.array(((-rectx[1]-rectx[0])/2,(recty[1]+recty[0])/2))
-        model_origin = np.array((np.cos(-math.pi*12/24),np.sin(-math.pi*12/24))) 
+        elif rectx[0] < 0 and recty[-1] > 0: 
+            model_origin = np.array((0.8,-0.8))
+            screen_origin = np.array(((-rectx[1]-rectx[0])/2,(recty[1]+recty[0])/2))
+            model_target = np.array((np.cos(-math.pi*12/24),np.sin(-math.pi*12/24))) 
+            
+        elif rectx[0] > 0 and recty[-1] < 0:
+            model_origin = np.array((0.9,-0.8))
+            screen_origin = np.array(((rectx[1]+rectx[0])/2,(-recty[1]-recty[0])/2)) 
+            model_target = np.array((np.cos(-math.pi*12/24),np.sin(-math.pi*12/24))) 
+            
+        else: 
+            model_origin = np.array((0.5,0.2))
+            screen_origin = np.array(((-rectx[1]-rectx[0])/2,(-recty[1]-recty[0])/2))
+            model_target = np.array((np.cos(-math.pi*12/24),np.sin(-math.pi*12/24))) 
+    
+        screen_target = np.array((0,0)) 
         
-    elif rectx[0] > 0 and recty[-1] < 0:
-        model_target = np.array((1.5,0))
-        dfy = -1 * dfy
-        screen_target = np.array(((rectx[1]+rectx[0])/2,(-recty[1]-recty[0])/2)) 
-        model_origin = np.array((np.cos(-math.pi*12/24),np.sin(-math.pi*12/24))) 
-        
-    else: 
-        model_target = np.array((0.5,1))
-        dfx = -1 * dfx
-        dfy = -1 * dfy
-        screen_target = np.array(((-rectx[1]-rectx[0])/2,(-recty[1]-recty[0])/2))
-        model_origin = np.array((np.cos(-math.pi*12/24),np.sin(-math.pi*12/24))) 
-   
-    screen_origin = np.array((0,0))
+    else:
+    
+        if rectx[0] > 0 and recty[-1] > 0:
+            model_target = np.array((0.5,1))
+            screen_target = np.array(((rectx[1]+rectx[0])/2,(recty[1]+recty[0])/2))
+            model_origin = np.array((np.cos(-math.pi*12/24),np.sin(-math.pi*12/24))) 
+
+        elif rectx[0] < 0 and recty[-1] > 0: 
+            model_target = np.array((1.5,0))
+            dfx = -1 * dfx
+            screen_target = np.array(((-rectx[1]-rectx[0])/2,(recty[1]+recty[0])/2))
+            model_origin = np.array((np.cos(-math.pi*12/24),np.sin(-math.pi*12/24))) 
+            
+        elif rectx[0] > 0 and recty[-1] < 0:
+            model_target = np.array((1.5,0))
+            screen_target = np.array(((rectx[1]+rectx[0])/2,(-recty[1]-recty[0])/2)) 
+            model_origin = np.array((np.cos(-math.pi*12/24),np.sin(-math.pi*12/24))) 
+            
+        else: 
+            model_target = np.array((0.5,1))
+            screen_target = np.array(((-rectx[1]-rectx[0])/2,(-recty[1]-recty[0])/2))
+            model_origin = np.array((np.cos(-math.pi*12/24),np.sin(-math.pi*12/24))) 
+    
+        screen_origin = np.array((0,0))
 
     v_model=model_target-model_origin
     v_model_ort=np.array((v_model[1],-v_model[0]))
@@ -434,11 +459,31 @@ def linear_transf(dfx : pd.DataFrame, dfy : pd.DataFrame,
     A=M[:2,:2]
     b=M[:2,-1:].flatten()
     
+    if inverse: 
+        # Compute the inverse of the affine transformation
+        A= np.linalg.inv(A)
+        b = -np.dot(A, b)
+    
     dfx_=A[0,0]*dfx+A[0,1]*dfy+b[0]
     dfy_=A[1,0]*dfx+A[1,1]*dfy+b[1]
     
-    return dfx_, dfy_
-
+    if inverse: 
+        if rectx[0] > 0 and recty[-1] > 0:
+            return dfx_, dfy_
+        elif rectx[0] < 0 and recty[-1] > 0: 
+            dfx_ = -1 * dfx_
+            return dfx_, dfy_
+        elif rectx[0] > 0 and recty[-1] < 0:
+            dfy_ = -1 * dfy_
+            return dfx_, dfy_
+        else: 
+            dfx_ = -1 * dfx_
+            dfy_ = -1 * dfy_
+            return dfx_, dfy_
+    
+    else: 
+        return dfx_, dfy_
+    
 def multiple_linear_transf(cleaned_data_dict: dict, idxrule_dict: dict, 
                             segments: List[Tuple[Tuple[float, float], Tuple[float, float]]], 
                             first_subj: int = 25, last_subj: int = 37,

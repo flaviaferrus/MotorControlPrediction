@@ -23,7 +23,7 @@ from scipy.stats import norm, shapiro
 ##          CUSTOM IMPORTS             ##
 #########################################
 
-from utils_data_multiple import get_cluster_data, get_cluster_idxrule 
+from utils_data_multiple import get_cluster_data, get_cluster_idxrule, linear_transf 
 from utils_model import ComputeFunctional, ComputeVel 
 
 #########################################
@@ -305,18 +305,20 @@ def plot_simulation(x : np.ndarray , y : np.ndarray,
     
 def plot_multiple_trajectories(dfx: pd.DataFrame, dfy: pd.DataFrame,
                                new_params: np.ndarray, opt_Sigma: np.float64,  
-                               motivation: int, mode : int, 
+                               motivation: int, mode : int, cluster : int,
+                               segments : List[Tuple[Tuple[float, float], Tuple[float, float]]],
                                parameters2=(3.7, -0.15679707,  0.97252444,  0.54660283, -6.75775885, -0.06253371),
                                n=50, timestep=1/500, pic_name ='Simulated_Trajectories', 
-                               ax=None, saving_plot=False, color = 'blue'): 
+                               folder_name = 'project_plots',
+                               ax=None, saving_plot=False, color = 'blue', inverse = False): 
     
     if ax is None:
         fig, ax = plt.subplots()
     
     ## Plotting experimental data
     for i in range(len(dfx)):
-        ax.plot(dfx.iloc[i], dfy.iloc[i], color='gray', alpha=0.5)
-        
+        ax.plot(dfx.iloc[i], dfy.iloc[i], color='gray', alpha=0.5, label='Experimental Trajectories' if i == 0 and cluster == 0 else "") 
+                        
     ## Plotting numerical simulation
     gamma, epsilon, alpha = new_params.x
     sigma = opt_Sigma.x
@@ -328,16 +330,12 @@ def plot_multiple_trajectories(dfx: pd.DataFrame, dfy: pd.DataFrame,
                                                      i_max=1000, dt=timestep,
                                                      Autoregr=False, 
                                                      Arc=True, angle=math.pi*12/24, angle0=0, p=(.2,0), r=.1)
-        ax.plot(x, y, color = color) 
-    
-    x_, y_, v_, w_, ux_, uy_, T_ = numericalSimulation(x_0=(0,0,0,0), p_T=1.3, 
-                                                       sigma=sigma * 0.05, gamma=gamma, epsilon=epsilon, alpha=alpha,
-                                                       u_0=parameters2[:2], l_0=parameters2[2:], 
-                                                       i_max=1000, dt=timestep,
-                                                       Autoregr=False, 
-                                                       Arc=True, angle=math.pi*12/24, angle0=0, p=(.2,0), r=.1)
-    #plot_trajectory(x_, y_, ax=ax, showing=False)
-    
+        if inverse: 
+            x_, y_ = linear_transf(x, y, segments[cluster][0], segments[cluster][1], inverse = True)
+            ax.plot(x_, y_, color = color, label=f'Simulated Trajectories Cluster {cluster}' if i == 0 else "") 
+        else:
+            ax.plot(x, y, color = color, label=f'Simulated Trajectories Cluster {cluster}' if i == 0 else "") 
+        
     ax.set_title(f'Motivation {motivation}, Mode {mode}')
     #ax.grid(True)
     ax.set_xlabel('X')
@@ -346,11 +344,11 @@ def plot_multiple_trajectories(dfx: pd.DataFrame, dfy: pd.DataFrame,
     
     if saving_plot:
         # Check if the 'pics' folder exists, if not, create it
-        if not os.path.exists('pics'):
-            os.makedirs('pics')
+        if not os.path.exists(folder_name):
+            os.makedirs(folder_name)
         # Save the figure with a specific name based on the cluster
         filename = f'{pic_name}{motivation}{mode}.png'
-        filepath = os.path.join('pics', filename)
+        filepath = os.path.join(folder_name, filename)
         plt.savefig(filepath)
     
     if ax is None:
@@ -358,16 +356,19 @@ def plot_multiple_trajectories(dfx: pd.DataFrame, dfy: pd.DataFrame,
         
     return x_, y_
 
-def generated_multiple_trajectories_plot(scaled_data_dict: dict, params_loaded: dict, 
-                            opt_sigma : dict, 
-                            first_subj: int = 25, last_subj: int = 37,
-                            n_clusters = 4,
-                            saving = True, 
-                            save_dir: str = 'subject_plots', 
-                            picname: str = 'Simulated_trajectories'): 
+def combined_multiple_trajectories_plot(scaled_data_dict: dict, 
+                                        params_loaded: dict, 
+                                        opt_sigma : dict, 
+                                        segments : List[Tuple[Tuple[float, float], Tuple[float, float]]],
+                                        first_subj: int = 25, last_subj: int = 37,
+                                        n_clusters = 4,
+                                        saving = True, 
+                                        inverse = True, 
+                                        save_dir: str = 'project_plots', 
+                                        picname: str = 'Simulated_trajectories'): 
     
-
-    
+    colors = ['r', 'g', 'b', 'c']
+        
     for subject in range(first_subj, last_subj):
         
         print('Simulated and experimental trajectories for subject ', subject )
@@ -375,55 +376,56 @@ def generated_multiple_trajectories_plot(scaled_data_dict: dict, params_loaded: 
         fig.suptitle(f'Subject {subject} Simulated Trajectories', fontsize=16)
         subplot_index = 0
         pic_name = f'{picname}_{subject}'
-
-        colors = ['r', 'g', 'b', 'c']
         
         for motivation in range(1, 4):
             
             for mode in range(1, 3):
+                #print(f'Simulated and experimental trajectories for subject {subject}, motivation {motivation} and mode {mode}')
+        
                 ax = axes[subplot_index // 2, subplot_index % 2]
                 
-                
                 for cluster in range(n_clusters):
-                    
+                      
                     key_x = f'dfx_{subject}_{motivation}{mode}_cluster_{cluster}'
                     key_y = f'dfy_{subject}_{motivation}{mode}_cluster_{cluster}'
                     key_ = f'{subject}_{motivation}{mode}_cluster_{cluster}' 
-
+                    
                     # Retrieve data if available
                     dfx_ = scaled_data_dict[subject].get(key_x)
                     dfy_ = scaled_data_dict[subject].get(key_y)
                     params = params_loaded[subject].get(key_)
                     sigma = opt_sigma[subject].get(key_)
                     
+                    # Plotting the experimental data
+                    color = colors[cluster % len(colors)]
+                        
+                    # Plotting the simulated data
                     if params is not None and sigma is not None:
                         try:
-                            x_, y_ = plot_multiple_trajectories(dfx_, dfy_, params, sigma, 
-                                                                motivation = motivation, mode = mode,  
-                                                                ax=ax, saving_plot=False, pic_name = pic_name,
-                                                                color = colors[cluster])
+                            x_, y_ = plot_multiple_trajectories(dfx = dfx_, dfy = dfy_,
+                                                                new_params = params, opt_Sigma = sigma,  
+                                                                motivation = motivation, mode = mode, cluster = cluster,
+                                                                segments = segments,
+                                                                parameters2=(3.7, -0.15679707,  0.97252444,  0.54660283, -6.75775885, -0.06253371),
+                                                                n=50, timestep=1/500, pic_name = picname, 
+                                                                folder_name = save_dir,
+                                                                ax=ax, saving_plot=False, color = color, inverse = inverse)
                         except ValueError as e:
                             print(f"Skipping cluster {cluster} for subject {subject}, motivation {motivation}, mode {mode}: {e}")
-                
-                    
-                    
                 
                 subplot_index += 1
                 
         fig.tight_layout(rect=[0, 0, 1, 0.96])  
         
         if saving:
-            # Check if the 'pics' folder exists, if not, create it
-            if not os.path.exists(save_dir):
-                os.makedirs(save_dir)
-            # Save the figure with a specific name based on the cluster
-            filepath = os.path.join(save_dir, pic_name)
+            if not os.path.exists(saving):
+                os.makedirs(saving)
+            filename = f'{pic_name}.png'
+            filepath = os.path.join(save_dir, filename)
             plt.savefig(filepath)
-            #plt.savefig(os.path.join(save_dir, pic_name))
-        
-        plt.close(fig)
-        
-    return x_, y_
+            plt.close(fig)  
+
+    plt.show()
 
 
 #########################################
