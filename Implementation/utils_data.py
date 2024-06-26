@@ -229,7 +229,6 @@ def cleaning_data(dfx : pd.DataFrame, dfy : pd.DataFrame,
     
     return dfx, dfy, idxrule
 
-
 def linear_transf(dfx : pd.DataFrame, dfy : pd.DataFrame, 
                   rectx : np.ndarray, recty : np.ndarray, 
                   inverse = False) -> Tuple[pd.DataFrame, pd.DataFrame]:

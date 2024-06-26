@@ -314,9 +314,16 @@ def plot_multiple_trajectories_combined(dfx: pd.DataFrame, dfy: pd.DataFrame,
                                          pic_name='Trajectories_combined', pic_folder='project_plots',
                                          saving_plot=False,
                                          inverse=False, 
-                                         metrics=True):
+                                         metrics=True, 
+                                         plotting_vel = True):
 
-    fig, ax = plt.subplots(figsize=(10, 8))
+    if plotting_vel: 
+        fig, (ax, ax2) = plt.subplots(2, 1, figsize=(10, 16))
+        ax2.set_title(f'Subject {subject} Simulated Valocity', fontsize=16)
+        
+    else: 
+        fig, ax = plt.subplots(figsize=(10, 8))
+        
     ax.set_title(f'Subject {subject} Simulated Trajectories', fontsize=16)
     colors = ['r', 'g', 'b', 'c']
     
@@ -349,6 +356,7 @@ def plot_multiple_trajectories_combined(dfx: pd.DataFrame, dfy: pd.DataFrame,
 
         simulated_x = []
         simulated_y = []
+        t_ = []
 
         for i in range(n):
             x, y, v, w, ux, uy, T = numericalSimulation(x_0=(0, 0, 0, 0), p_T=1.0,
@@ -357,7 +365,13 @@ def plot_multiple_trajectories_combined(dfx: pd.DataFrame, dfy: pd.DataFrame,
                                                         i_max=1000, dt=timestep,
                                                         Autoregr=False,
                                                         Arc=True, angle=math.pi*7/24, angle0=0, p=(.2, 0), r=.1)
-
+            t_.append(T)
+            if plotting_vel: 
+                dfv=np.sqrt(np.square(v)+np.square(w))
+                ax2.plot(dfv, color=colors[cluster], label=f'Simulated Velocity Cluster {cluster}' if i == 0 else "") 
+                 
+                #ax2.plot(v, w, color=colors[cluster], label=f'Simulated Velocity Cluster {cluster}' if i == 0 else "") 
+                
             if inverse:
                 x_, y_ = linear_transf(x, y, rectx, recty, inverse=True)
                 simulated_x.append(x_)
@@ -378,20 +392,27 @@ def plot_multiple_trajectories_combined(dfx: pd.DataFrame, dfy: pd.DataFrame,
             dfx_padded = pad_or_truncate_trajectories(dfx[cluster].values, simulated_x.shape[1])
             dfy_padded = pad_or_truncate_trajectories(dfy[cluster].values, simulated_y.shape[1])
 
-            metrics = ['MSE', 'RMSE', 'MAE']
+            metrics = ['MSE', 'RMSE', 'DTW', 'MAE']
             metrics_res = []
             for metric in metrics:
                 mse_avg_x, mse_avg_y = compute_mse_between_averages(dfx_padded, dfy_padded, simulated_x, simulated_y, error = metric)
             
                 #metrics_res.append({metric : (mse_avg_x, mse_avg_y)})
                 metrics_res.append((mse_avg_x, mse_avg_y))
-            
+            metrics_res.append(t_)
             metrics_results[cluster] = metrics_res
             
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.legend()
-    fig.tight_layout()
+    
+    if plotting_vel: 
+        ax2.set_xlabel('Velocity x axis')
+        ax2.set_ylabel('Velocity y axis')
+        ax2.legend()
+        fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+    else: 
+        fig.tight_layout()
 
     if saving_plot:
         if not os.path.exists(pic_folder):
@@ -402,6 +423,7 @@ def plot_multiple_trajectories_combined(dfx: pd.DataFrame, dfy: pd.DataFrame,
 
     plt.show()
 
+    
     if metrics:
         return pd.DataFrame(metrics_results)
 
@@ -635,3 +657,9 @@ def fitParamaters(results : pd.DataFrame,
         
     return new_params, opt_sigma
             
+
+
+#########################################
+##          KALMAN FILTER              ##
+#########################################
+
