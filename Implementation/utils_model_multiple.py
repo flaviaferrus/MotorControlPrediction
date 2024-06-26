@@ -679,7 +679,7 @@ def plot_gaussian_distributions_theo(parameters: np.ndarray, style_label ='seabo
          
         #ax.set_xlabel('Value')
         ax.set_ylabel('Density', fontsize=16)
-        ax.legend(loc = 2, fontsize = 12)
+        ax.legend(loc = 2, fontsize = 10)
 
     plt.tight_layout()
     
@@ -711,7 +711,7 @@ def plotting_dict_params(params_dict: dict, opt_sigma: dict,
     sigma_array = sigma_array.reshape(-1, 1)
     combined_params = np.hstack((params_array, sigma_array))
     combined_params[:, 2] *= -1 
-    #combined_params[:, 3] *= 0.005 
+    combined_params[:, 3] *= 0.005 
    
     if plotting_ == 0: 
         box_plot_params(parameters = combined_params, style_label = style_label, 
