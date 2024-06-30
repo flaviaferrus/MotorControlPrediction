@@ -9,6 +9,13 @@ In particular, proprioception provides internal corroboration that a movement is
 
 Despite its obvious practical and clinical importance, proprioception remains one of the least studied senses, often overshadowed by its more familiar counterparts. Hence, **the main goal of the project we present is to develop a unifying theoretical framework of proprioception, motor control and decision-making**. 
 
+### State of the Art
+
+**Optimal Feedback Control (OFC)** is a prominent theoretical framework in the study of motor control, aiming to understand how humans make motor decisions and execute movements efficiently. In latest work on this topic, OFC posits that motor behavior can be modeled as an optimization process where the central nervous system (CNS) minimizes a cost function. This cost function typically includes terms for error minimization, effort, and sometimes other factors like variability and noise. The OFC architecture contains a \textbf{controlled object}, in this case the \textbf{body}, whose dynamics can be described by means of \textbf{Hamiltonian dynamics}; a \textbf{controller}, this is the CNS which is an \textbf{optimal feedback controller} conducting the \textbf{optimization process}, and an \textbf{optimal state estimator} that combines commands and sensory feedback to obtain a state estimate according to the \textbf{forward model}. 
+
+![OFC information flow chart diagram.](./MotorControl.png)
+
+
 ## Model Implementation
 
 Firstly, the optimization process is computed as analytically specified on the aforementioned Chapters. Secondly, the optimal time duration and controller determine the functional in order to compute the bottom-up correction step as a means to update the previous prediction. Hence, the optimal state is used to predict the following trajectory, which may be sequentially filtered again. This sequential approach is implemented in order to learn the biomechanical parameters of the model, as a means to simulate trajectories close to the experimental ones.
@@ -23,5 +30,6 @@ The repository structure is based on
     - `utils_data_multiple.py` file with the defined functions for data exploration and preprocessing, for the whole data set, regarding subjects 25 to 36. 
     - `utils_model.py` file with the defined functions for the optimization process, forward model, parameter fitting, as well as the simulation of the filtered trajectories, for a singular subject study.
     - `utils_model_multiple.py` file with the defined functions for the optimization process, forward model, parameter fitting, as well as the simulation of the filtered trajectories, for the whole data set, regarding subjects 25 to 36. 
+- **Notebooks** folder: contains the notebooks where the code can also be implemented. 
  
 
