@@ -1,4 +1,4 @@
-# The Influence of Predicted Effort and Time Constraint on Decisions between Actions
+# The Dynamics of Motivated Decision-Making
 
 ## Project proposal and motivation
 
@@ -8,4 +8,20 @@ The combination of movement related choices and more cognitive decisions determi
 In particular, proprioception provides internal corroboration that a movement is ongoing, it is hence a distributed phenomenon implicated in processes of top-down prediction and bottom-up correction, consistent with the hypothesis of distributed network implementing a bodily-reference framework that branches into brain areas other than the somatosensory cortex. However, the state-of-the-art motor control models have not yet characterised how the dynamics of proprioception internally contribute to the selection of specific movements, nor have yet explained how this relationship is distributed across the hypothetical proprioceptive network. Understanding the neural basis of movements and decisions and reconciling this with our sense of bodily perception into a single theory is not an easy task but is a major requirement to ultimately design directed neurorehabilitation techniques and to provide a principled view to neurodegenerative motor symptoms. 
 
 Despite its obvious practical and clinical importance, proprioception remains one of the least studied senses, often overshadowed by its more familiar counterparts. Hence, **the main goal of the project we present is to develop a unifying theoretical framework of proprioception, motor control and decision-making**. 
+
+## Model Implementation
+
+Firstly, the optimization process is computed as analytically specified on the aforementioned Chapters. Secondly, the optimal time duration and controller determine the functional in order to compute the bottom-up correction step as a means to update the previous prediction. Hence, the optimal state is used to predict the following trajectory, which may be sequentially filtered again. This sequential approach is implemented in order to learn the biomechanical parameters of the model, as a means to simulate trajectories close to the experimental ones.
+
+## Repository content
+
+The repository structure is based on 
+- **Implementation** folder: contains the specific files with the defined functions for the singular subject study and for all the dataset study as well as the main functions needed for compiling the full implementation. More explicitly: 
+    - `main.py` main compilation file, for a singular subject study.
+    - `main_mulitple.py` main compilation file, for the whole data set, regarding subjects 25 to 36. 
+    - `utils_data.py` file with the defined functions for data exploration and preprocessing, for a singular subject study.
+    - `utils_data_multiple.py` file with the defined functions for data exploration and preprocessing, for the whole data set, regarding subjects 25 to 36. 
+    - `utils_model.py` file with the defined functions for the optimization process, forward model, parameter fitting, as well as the simulation of the filtered trajectories, for a singular subject study.
+    - `utils_model_multiple.py` file with the defined functions for the optimization process, forward model, parameter fitting, as well as the simulation of the filtered trajectories, for the whole data set, regarding subjects 25 to 36. 
+ 
 
