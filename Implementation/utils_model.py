@@ -658,8 +658,3 @@ def fitParamaters(results : pd.DataFrame,
     return new_params, opt_sigma
             
 
-
-#########################################
-##          KALMAN FILTER              ##
-#########################################
-

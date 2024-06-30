@@ -711,7 +711,7 @@ def plotting_dict_params(params_dict: dict, opt_sigma: dict,
     sigma_array = sigma_array.reshape(-1, 1)
     combined_params = np.hstack((params_array, sigma_array))
     combined_params[:, 2] *= -1 
-    combined_params[:, 3] *= 0.005 
+    combined_params[:, 3] *= 0.05 
    
     if plotting_ == 0: 
         box_plot_params(parameters = combined_params, style_label = style_label, 
