@@ -88,18 +88,20 @@ def plot_data(dfx : pd.DataFrame, dfy : pd.DataFrame,
               plotting_target = False, 
               saving_plot = False,
               pt = (0,0),
-              pic_name = 'cluster'
+              pic_name = 'cluster', 
+              ax = None
               ) -> Tuple[np.ndarray, np.ndarray]: 
     
-    plt.figure(figsize=(10, 6))
-    
+    if ax is None:
+        ax = plt.gca()
+       
     if len(cluster_labels) == 0:
         for i in range(len(dfx)):
-            plt.plot(dfx.iloc[i], dfy.iloc[i])
+            ax.plot(dfx.iloc[i], dfy.iloc[i])
     else: 
         for i in range(len(dfx)):
             if (cluster_labels[i] == cluster):
-                plt.plot(dfx.loc[i], dfy.loc[i], color=plt.cm.jet(cluster_labels[i] / n_clusters), alpha=0.5)
+                ax.plot(dfx.loc[i], dfy.loc[i], color=plt.cm.jet(cluster_labels[i] / n_clusters), alpha=0.5)
     
     if plotting_target:
         if (pt[0] < 0 and pt[1] > 0): #cluster == 3: # Top left pt2
@@ -115,7 +117,7 @@ def plot_data(dfx : pd.DataFrame, dfy : pd.DataFrame,
         elif (pt[0] > 0 and pt[1] > 0): #cluster == 0: # Top right 2, 0
             pt0 = (pt[0] - 1, pt[1] + 1.75)
             pt1 = (pt[0] + 1, pt[1] - 1.75)
-            pt2 = (pt0[0] + 1.25, pt0[1] + 1 )
+            pt2 = (pt0[0] + 1.25, pt0[1] + 1)
             pt3 = (pt1[0] + 1.25, pt1[1] + 1)
         else: # bottom left 1 (notebook 3)
             pt0 = (pt[0] + 1, pt[1] + 1.75)
@@ -125,15 +127,15 @@ def plot_data(dfx : pd.DataFrame, dfy : pd.DataFrame,
             
                     
         rectx,recty=np.array([pt0[0], pt2[0], pt1[0], pt3[0]]), np.array([pt0[1], pt2[1], pt1[1], pt3[1]])
-        plt.scatter(rectx,recty)
-        plt.plot([rectx[0], rectx[2]], [recty[0], recty[2]], color = 'red', alpha = 0.5)
+        ax.scatter(rectx,recty)
+        ax.plot([rectx[0], rectx[2]], [recty[0], recty[2]], color = 'red', alpha = 0.5)
     else: 
         rectx,recty=np.array([0,0,0,0]), np.array([0,0,0,0])
      
-    plt.title('Trajectories in Cluster {}'.format(cluster))
-    plt.grid(True)
-    plt.xlabel('X')
-    plt.ylabel('Y')
+    ax.set_title('Trajectories in Cluster {}'.format(cluster))
+    ax.grid(True)
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
     if saving_plot:
         # Check if the 'pics' folder exists, if not, create it
         if not os.path.exists('pics'):
@@ -143,7 +145,8 @@ def plot_data(dfx : pd.DataFrame, dfy : pd.DataFrame,
         filepath = os.path.join('pics', filename)
         plt.savefig(filepath)
     
-    plt.show()
+    if ax is None:
+        plt.show()
         
     return rectx, recty
 
@@ -227,24 +230,46 @@ def cleaning_data(dfx : pd.DataFrame, dfy : pd.DataFrame,
     return dfx, dfy, idxrule
 
 def linear_transf(dfx : pd.DataFrame, dfy : pd.DataFrame, 
-                  rectx : np.ndarray, recty : np.ndarray) -> Tuple[pd.DataFrame, pd.DataFrame]:
+                  rectx : np.ndarray, recty : np.ndarray, 
+                  inverse = False) -> Tuple[pd.DataFrame, pd.DataFrame]:
     
-    model_target = np.array((1,0))
-    if rectx[0] > 0 and recty[-1] > 0:
-        screen_target = np.array(((rectx[3]+rectx[0])/2,(recty[3]+recty[0])/2))
-    elif rectx[0] < 0 and recty[-1] > 0: 
-        dfx = -1 * dfx
-        screen_target = np.array(((-rectx[3]-rectx[0])/2,(recty[3]+recty[0])/2))
-    elif rectx[0] > 0 and recty[-1] < 0:
-        dfy = -1 * dfy
-        screen_target = np.array(((rectx[3]+rectx[0])/2,(-recty[3]-recty[0])/2)) 
-    else: 
-        dfx = -1 * dfx
-        dfy = -1 * dfy
-        screen_target = np.array(((-rectx[3]-rectx[0])/2,(-recty[3]-recty[0])/2))
+    if inverse:
+        model_target = np.array((np.cos(-math.pi*7/24),np.sin(-math.pi*7/24)))  
+        model_origin = np.array((1,0))
         
-    model_origin = np.array((np.cos(-math.pi*7/24),np.sin(-math.pi*7/24))) 
-    screen_origin = np.array((0,0))
+        if rectx[0] > 0 and recty[-1] > 0:
+            screen_origin = np.array(((rectx[3]+rectx[0])/2,(recty[3]+recty[0])/2))
+        elif rectx[0] < 0 and recty[-1] > 0: 
+            #dfx = -1 * dfx
+            screen_origin = np.array(((-rectx[3]-rectx[0])/2,(recty[3]+recty[0])/2))
+        elif rectx[0] > 0 and recty[-1] < 0:
+            #dfy = -1 * dfy
+            screen_origin = np.array(((rectx[3]+rectx[0])/2,(-recty[3]-recty[0])/2)) 
+        else: 
+            #dfx = -1 * dfx
+            #dfy = -1 * dfy
+            screen_origin = np.array(((-rectx[3]-rectx[0])/2,(-recty[3]-recty[0])/2))   
+        
+        screen_target = np.array((0,0)) 
+        
+    else: 
+        model_target = np.array((1,0))
+        model_origin = np.array((np.cos(-math.pi*7/24),np.sin(-math.pi*7/24))) 
+               
+        if rectx[0] > 0 and recty[-1] > 0:
+            screen_target = np.array(((rectx[3]+rectx[0])/2,(recty[3]+recty[0])/2))
+        elif rectx[0] < 0 and recty[-1] > 0: 
+            dfx = -1 * dfx
+            screen_target = np.array(((-rectx[3]-rectx[0])/2,(recty[3]+recty[0])/2))
+        elif rectx[0] > 0 and recty[-1] < 0:
+            dfy = -1 * dfy
+            screen_target = np.array(((rectx[3]+rectx[0])/2,(-recty[3]-recty[0])/2)) 
+        else: 
+            dfx = -1 * dfx
+            dfy = -1 * dfy
+            screen_target = np.array(((-rectx[3]-rectx[0])/2,(-recty[3]-recty[0])/2))   
+    
+        screen_origin = np.array((0,0))
 
     v_model=model_target-model_origin
     v_model_ort=np.array((v_model[1],-v_model[0]))
@@ -259,10 +284,30 @@ def linear_transf(dfx : pd.DataFrame, dfy : pd.DataFrame,
     A=M[:2,:2]
     b=M[:2,-1:].flatten()
     
+    if inverse: 
+        # Compute the inverse of the affine transformation
+        A= np.linalg.inv(A)
+        b = -np.dot(A, b)
+    
     dfx_=A[0,0]*dfx+A[0,1]*dfy+b[0]
     dfy_=A[1,0]*dfx+A[1,1]*dfy+b[1]
     
-    return dfx_, dfy_
+    if inverse: 
+        if rectx[0] > 0 and recty[-1] > 0:
+            return dfx_, dfy_
+        elif rectx[0] < 0 and recty[-1] > 0: 
+            dfx_ = -1 * dfx_
+            return dfx_, dfy_
+        elif rectx[0] > 0 and recty[-1] < 0:
+            dfy_ = -1 * dfy_
+            return dfx_, dfy_
+        else: 
+            dfx_ = -1 * dfx_
+            dfy_ = -1 * dfy_
+            return dfx_, dfy_
+    
+    else: 
+        return dfx_, dfy_
 
 def experimental_velocity(dfx : pd.DataFrame, dfy : pd.DataFrame) -> pd.DataFrame:
     # Computing velocity of each point along the trajectories
@@ -298,8 +343,8 @@ def plot_velocity(dfv : pd.DataFrame, saving_plot = False, pic_name = 'Velocity'
         plt.savefig(filepath)
     plt.show()
 
-
 def saving_processed_data(df : pd.DataFrame, folder_name = 'processed_data', file_name = 'processed_dfx'): 
+    
     # Get the current directory
     current_dir = os.getcwd()
     
@@ -332,3 +377,83 @@ def load_processed_data(folder_path: str, file_name: str) -> pd.DataFrame:
     df = pd.read_csv(file_path)  # Change the format as per your requirement
     return df
 
+
+
+#########################################
+##          DATA PROCESSING            ##
+#########################################
+
+def processing_data(n_clusters = 4, path = 'dataTrajectories-25.mat') -> Tuple[pd.DataFrame, list, list]:
+    
+    dfx, dfy = load_data( path = path )
+    
+    random.seed(10)
+    # n_clusters = 4
+    
+    cluster_datasets, cluster_labels = data_clustering(dfx, dfy)
+    
+    cluster_points = [
+        (10.5, 4.85),   # pt2
+        (-11, -5),       # pt3  
+        (10.5, 0),      # pt1    
+        (-10.5, 1.25)  # pt0
+    ]
+    rect_df = pd.DataFrame(columns=['cluster', 'rectx', 'recty', 'idxrule', 'mean_T', 'max_vel'])
+    
+    truncated_dfx = [[] for _ in range(n_clusters)]
+    truncated_dfy = [[] for _ in range(n_clusters)]   
+    rotated_dfx = [[] for _ in range(n_clusters)]
+    rotated_dfy = [[] for _ in range(n_clusters)]
+    dfv = [[] for _ in range(n_clusters)] 
+   
+    # Iterate over each cluster
+    for cluster in range(n_clusters):
+        # Get the corresponding point for the current cluster
+        pt = cluster_points[cluster]
+        
+        # Call the plot_data function for the current cluster
+        rectx, recty = plot_data(dfx, dfy, cluster_labels, 
+                cluster, n_clusters, 
+                plotting_target=True, saving_plot=False, pt=pt)
+        truncated_dfx[cluster] , truncated_dfy[cluster], idxrule = cleaning_data(cluster_datasets[cluster][0], 
+                                                               cluster_datasets[cluster][1], 
+                                                               rectx, recty)
+        # Plotting truncated data
+        _ = plot_data(truncated_dfx[cluster] , truncated_dfy[cluster], cluster_labels = [], 
+                      cluster = cluster, n_clusters = n_clusters, 
+                      plotting_target= True, saving_plot= False, 
+                      pt = pt, pic_name= 'Truncated')
+        
+        saving_processed_data(truncated_dfx[cluster], folder_name = 'processed_data', file_name = 'cleaned_cluster{}_dfx'.format(cluster))
+        saving_processed_data(truncated_dfy[cluster], folder_name = 'processed_data', file_name = 'cleaned_cluster{}_dfy'.format(cluster))
+     
+        # Linear transformation
+        rotated_dfx[cluster] , rotated_dfy[cluster] = linear_transf(truncated_dfx[cluster] , truncated_dfy[cluster], 
+                                                        rectx, recty)
+        
+        # Plotting rotated data
+        _ = plot_data(rotated_dfx[cluster] , rotated_dfy[cluster], cluster_labels = [], 
+                        cluster = cluster, n_clusters = n_clusters, 
+                        plotting_target= False, saving_plot= False, 
+                        pt = pt, pic_name = 'Translated')
+        
+        # Computing the velocity 
+        dfv[cluster] = experimental_velocity(rotated_dfx[cluster], rotated_dfy[cluster])
+        plot_velocity(dfv[cluster], saving_plot = True, pic_name = 'Velocity{}'.format(cluster))
+        
+        # Compute the mean of the list idxrule: this is the stopping time average (in ms)
+        mean_idxrule = sum(idxrule) / len(idxrule)
+        T = mean_idxrule / 1000
+        vel=dfv[cluster].T.max().mean()
+        
+        # Concatenate the data to rect_df
+        rect_df = pd.concat([rect_df, pd.DataFrame({'cluster': [cluster], 'rectx': [rectx], 'recty': [recty],
+                                                    'idxrule': [idxrule], 'mean_T': T, 'max_vel': vel})],
+                            ignore_index=True) 
+        
+        saving_processed_data(rotated_dfx[cluster], folder_name = 'processed_data', file_name = 'cluster{}_dfx'.format(cluster))
+        saving_processed_data(rotated_dfy[cluster], folder_name = 'processed_data', file_name = 'cluster{}_dfy'.format(cluster))
+    
+    saving_processed_data(rect_df, folder_name = 'processed_data', file_name = 'results')
+    
+    return rect_df, rotated_dfx, rotated_dfy  
