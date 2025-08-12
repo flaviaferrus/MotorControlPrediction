@@ -705,6 +705,12 @@ def plotting_dict_params(params_dict: dict, opt_sigma: dict,
                          saving_plot = True, folder_name = 'fitted_pics', 
                          pic_name = 'params'): 
     
+    '''
+        Function that plots the parameters from the dictionary params_dict and opt_sigma.
+        If plotting_ == 0, it plots a box plot of the parameters.
+        If plotting_ == 1, it plots the Gaussian distributions of the parameters.
+    '''
+
     params_array = dict_to_array(params_dict)
     sigma_array = dict_to_array(opt_sigma)
     
